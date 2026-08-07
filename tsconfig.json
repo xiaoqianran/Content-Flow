@@ -1,0 +1,15 @@
+{
+  "files": [],
+  "references": [
+    { "path": "packages/schemas" },
+    { "path": "packages/core" },
+    { "path": "packages/bilibili" },
+    { "path": "packages/ui" },
+    { "path": "packages/runtime" },
+    { "path": "packages/hub-client" },
+    { "path": "apps/userscript" },
+    { "path": "scripts" },
+    { "path": "tests" }
+  ]
+}
+

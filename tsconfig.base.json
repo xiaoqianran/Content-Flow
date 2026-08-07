@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noEmit": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "baseUrl": ".",
+    "paths": {
+      "@subbatch/core": ["packages/core/src/index.ts"],
+      "@subbatch/bilibili": ["packages/bilibili/src/index.ts"],
+      "@subbatch/ui": ["packages/ui/src/index.ts"],
+      "@subbatch/runtime": ["packages/runtime/src/index.ts"],
+      "@subbatch/hub-client": ["packages/hub-client/src/index.ts"],
+      "@subbatch/schemas": ["packages/schemas/src/index.ts"]
+    }
+  }
+}
+

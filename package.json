@@ -1,0 +1,32 @@
+{
+  "name": "content-flow",
+  "version": "0.1.0",
+  "private": true,
+  "description": "SubBatch browser runtime monorepo",
+  "license": "MIT",
+  "packageManager": "pnpm@10.30.3",
+  "engines": {
+    "node": ">=22.0.0",
+    "pnpm": ">=10.0.0"
+  },
+  "scripts": {
+    "dev:userscript": "vite --config apps/userscript/vite.config.ts --watch",
+    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
+    "test": "vitest run",
+    "lint": "eslint . --max-warnings=0",
+    "build:userscript": "tsx scripts/build-userscript.ts",
+    "build": "pnpm build:userscript",
+    "verify:dist": "tsx scripts/verify-dist.ts"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.33.0",
+    "@types/node": "^24.2.1",
+    "eslint": "^9.33.0",
+    "globals": "^16.3.0",
+    "tsx": "^4.20.3",
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.39.0",
+    "vite": "^7.1.1",
+    "vitest": "^3.2.4"
+  }
+}
