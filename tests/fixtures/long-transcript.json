@@ -1,0 +1,14 @@
+{
+  "bvid": "BV1TEST",
+  "page": 2,
+  "data": [
+    { "index": 1, "from": "0.00s", "to": "10.00s", "from_sec": 0, "to_sec": 10, "content": "开场" },
+    { "index": 2, "from": "30.00s", "to": "40.00s", "from_sec": 30, "to_sec": 40, "content": "第一点" },
+    { "index": 3, "from": "60.00s", "to": "70.00s", "from_sec": 60, "to_sec": 70, "content": "第二点" },
+    { "index": 4, "from": "90.00s", "to": "100.00s", "from_sec": 90, "to_sec": 100, "content": "第三点" },
+    { "index": 5, "from": "120.00s", "to": "130.00s", "from_sec": 120, "to_sec": 130, "content": "第四点" },
+    { "index": 6, "from": "150.00s", "to": "160.00s", "from_sec": 150, "to_sec": 160, "content": "第五点" },
+    { "index": 7, "from": "180.00s", "to": "190.00s", "from_sec": 180, "to_sec": 190, "content": "收束" }
+  ]
+}
+

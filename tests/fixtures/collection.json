@@ -1,0 +1,11 @@
+{
+  "url": "https://www.bilibili.com/list/123456?sid=98765&bvid=BV1Q541167Qg&p=2",
+  "expected": {
+    "type": "collection",
+    "source": "auto",
+    "mid": "123456",
+    "season_id": "98765",
+    "bvid": "BVid",
+    "page": 2
+  }
+}
