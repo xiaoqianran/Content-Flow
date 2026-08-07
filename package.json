@@ -14,7 +14,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
     "test": "vitest run",
     "lint": "eslint . --max-warnings=0 && tsx scripts/verify-boundaries.ts",
-    "build:userscript": "tsx scripts/build-userscript.ts",
+    "build:userscript": "tsx scripts/build-userscript.ts && pnpm verify:dist",
     "build": "pnpm build:userscript",
     "verify:dist": "tsx scripts/verify-dist.ts"
   },
