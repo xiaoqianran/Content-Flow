@@ -1,3 +1,6 @@
-/** Userscript composition root. The behavior-frozen runtime is wired in P4. */
-export {};
+import { createUserscriptRuntime } from "@subbatch/runtime";
+
+import { createUserscriptHost } from "./userscript-host";
+
+export const runtime = createUserscriptRuntime(createUserscriptHost());
 
