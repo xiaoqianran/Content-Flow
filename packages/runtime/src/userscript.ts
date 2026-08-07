@@ -2,6 +2,7 @@ import type {
   NetworkRequest,
   NetworkResponse,
   ShortcutBinding,
+  ShortcutRegisterOptions,
   SubBatchRuntime,
 } from "./types";
 
@@ -14,7 +15,10 @@ export interface UserscriptHost {
   addStyle(css: string): void;
   pageWindow: Window;
   pageHref(): string;
-  registerShortcuts(bindings: readonly ShortcutBinding[]): () => void;
+  registerShortcuts(
+    bindings: readonly ShortcutBinding[],
+    options?: ShortcutRegisterOptions,
+  ): () => void;
   onNavigate(listener: () => void): () => void;
   hubAvailable(): Promise<boolean>;
   hubSend<T>(path: string, payload: unknown): Promise<T>;
@@ -57,8 +61,11 @@ export function createUserscriptRuntime(host: UserscriptHost): SubBatchRuntime {
       },
     },
     shortcuts: {
-      register(bindings: readonly ShortcutBinding[]): () => void {
-        return host.registerShortcuts(bindings);
+      register(
+        bindings: readonly ShortcutBinding[],
+        options?: ShortcutRegisterOptions,
+      ): () => void {
+        return host.registerShortcuts(bindings, options);
       },
     },
     page: {
@@ -72,4 +79,3 @@ export function createUserscriptRuntime(host: UserscriptHost): SubBatchRuntime {
     },
   };
 }
-

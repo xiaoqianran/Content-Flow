@@ -7,24 +7,37 @@ const PROMPT_KEYS = [
   "processedSubtitle",
   "chunkIndex",
   "chunkCount",
+  "chunkStart",
+  "coreStart",
+  "chunkEnd",
   "anchorText",
   "sourceContext",
   "ancestorPath",
   "question",
 ] as const;
 
-export type PromptVariables = Partial<Record<(typeof PROMPT_KEYS)[number], unknown>>;
+export type PromptVariableKey = (typeof PROMPT_KEYS)[number];
+export type PromptVariables = Partial<Record<PromptVariableKey, unknown>>;
 
+const PROMPT_KEY_PATTERN =
+  /\{\{\s*(title|bvid|author|subtitle|rawSubtitle|processedSubtitle|chunkIndex|chunkCount|chunkStart|coreStart|chunkEnd|anchorText|sourceContext|ancestorPath|question)\s*\}\}/g;
+
+/**
+ * Render a prompt template.
+ * Unknown placeholders are left intact (v6 behavior).
+ * chunkStart / coreStart / chunkEnd are required by PRE chunk templates.
+ */
 export function renderPromptTemplate(
   template: string,
   variables: PromptVariables | null | undefined,
 ): string {
   const values = Object.fromEntries(
-    PROMPT_KEYS.map((key) => [key, String(variables?.[key] || "")]),
-  ) as Record<(typeof PROMPT_KEYS)[number], string>;
+    PROMPT_KEYS.map((key) => [key, String(variables?.[key] ?? "")]),
+  ) as Record<PromptVariableKey, string>;
   return String(template || "").replace(
-    /\{\{\s*(title|bvid|author|subtitle|rawSubtitle|processedSubtitle|chunkIndex|chunkCount|anchorText|sourceContext|ancestorPath|question)\s*\}\}/g,
-    (_, key: (typeof PROMPT_KEYS)[number]) => values[key] ?? "",
+    PROMPT_KEY_PATTERN,
+    (_, key: PromptVariableKey) => values[key] ?? "",
   );
 }
 
+export { PROMPT_KEYS };

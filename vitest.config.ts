@@ -13,6 +13,9 @@ export default defineConfig({
       "@subbatch/runtime": fileURLToPath(
         new URL("./packages/runtime/src/index.ts", import.meta.url),
       ),
+      "@subbatch/schemas": fileURLToPath(
+        new URL("./packages/schemas/src/index.ts", import.meta.url),
+      ),
     },
   },
   test: {

@@ -3,15 +3,19 @@ interface UserscriptRequestDetails {
   url: string;
   headers?: Record<string, string>;
   data?: string;
+  responseType?: "text" | "blob" | "arraybuffer" | "json" | "stream" | "document";
   onload(response: UserscriptResponse): void;
   onerror(error: unknown): void;
   onabort(): void;
+  onprogress?: (response: UserscriptResponse) => void;
+  onloadstart?: (response: UserscriptResponse) => void;
 }
 
 interface UserscriptResponse {
   status: number;
   responseText: string;
   responseHeaders?: string;
+  response?: unknown;
 }
 
 declare const GM_getValue:
@@ -27,4 +31,3 @@ declare const GM_xmlhttpRequest:
 declare const GM_setClipboard: ((text: string) => void) | undefined;
 declare const GM_addStyle: ((css: string) => void) | undefined;
 declare const unsafeWindow: Window | undefined;
-

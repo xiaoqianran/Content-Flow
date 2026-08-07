@@ -68,7 +68,11 @@ importers:
         specifier: workspace:*
         version: link:../schemas
 
-  packages/runtime: {}
+  packages/runtime:
+    dependencies:
+      '@subbatch/core':
+        specifier: workspace:*
+        version: link:../core
 
   packages/schemas: {}
 

@@ -11,6 +11,12 @@ export default defineConfig({
       name: "SubBatch",
       fileName: () => "subbatch.bundle.js",
     },
+    rollupOptions: {
+      output: {
+        // Keep named exports on the IIFE global (SubBatch.runtime, etc.).
+        exports: "named",
+      },
+    },
     outDir: "dist/userscript/.build",
   },
 });

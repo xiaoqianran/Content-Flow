@@ -1,12 +1,14 @@
 import {
-  shortcutChordFromEvent,
   type ShortcutKeyboardEvent,
 } from "@subbatch/core";
-import type {
-  NetworkRequest,
-  NetworkResponse,
-  ShortcutBinding,
-  UserscriptHost,
+import {
+  installSpaNavigateAdapter,
+  registerShortcutRuntime,
+  type NetworkRequest,
+  type NetworkResponse,
+  type ShortcutBinding,
+  type ShortcutRegisterOptions,
+  type UserscriptHost,
 } from "@subbatch/runtime";
 
 function parseResponseHeaders(raw: string | undefined): Record<string, string> {
@@ -21,6 +23,41 @@ function parseResponseHeaders(raw: string | undefined): Record<string, string> {
   return headers;
 }
 
+async function readFetchStream(
+  response: Response,
+  onChunk?: (chunk: string) => void,
+  signal?: AbortSignal,
+): Promise<string> {
+  if (!response.body || !onChunk) {
+    return response.text();
+  }
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let text = "";
+  try {
+    while (true) {
+      if (signal?.aborted) {
+        await reader.cancel();
+        throw new DOMException("Aborted", "AbortError");
+      }
+      const { done, value } = await reader.read();
+      if (done) break;
+      const chunk = decoder.decode(value, { stream: true });
+      text += chunk;
+      onChunk(chunk);
+    }
+    text += decoder.decode();
+    return text;
+  } catch (error) {
+    try {
+      await reader.cancel();
+    } catch {
+      /* ignore */
+    }
+    throw error;
+  }
+}
+
 async function fetchRequest(
   url: string,
   request: NetworkRequest = {},
@@ -31,11 +68,16 @@ async function fetchRequest(
     ...(request.body !== undefined ? { body: request.body } : {}),
     ...(request.signal ? { signal: request.signal } : {}),
   });
+  const headers = Object.fromEntries(response.headers.entries());
+  const useStream = request.stream === true && typeof request.onChunk === "function";
+  const text = useStream
+    ? await readFetchStream(response, request.onChunk, request.signal)
+    : await response.text();
   return {
     status: response.status,
     ok: response.ok,
-    text: await response.text(),
-    headers: Object.fromEntries(response.headers.entries()),
+    text,
+    headers,
   };
 }
 
@@ -44,47 +86,98 @@ function privilegedRequest(
   request: NetworkRequest = {},
 ): Promise<NetworkResponse> {
   if (typeof GM_xmlhttpRequest !== "function") return fetchRequest(url, request);
+
+  const useStream = request.stream === true && typeof request.onChunk === "function";
+
   return new Promise((resolve, reject) => {
-    const handle = GM_xmlhttpRequest({
+    let lastLength = 0;
+    let settled = false;
+
+    const finish = (response: NetworkResponse): void => {
+      if (settled) return;
+      settled = true;
+      resolve(response);
+    };
+    const fail = (error: unknown): void => {
+      if (settled) return;
+      settled = true;
+      reject(error);
+    };
+
+    const details: UserscriptRequestDetails = {
       url,
       ...(request.method ? { method: request.method } : {}),
       ...(request.headers ? { headers: request.headers } : {}),
       ...(request.body !== undefined ? { data: request.body } : {}),
-      onload: (response) =>
-        resolve({
+      onload: (response) => {
+        const text = String(response.responseText || "");
+        if (useStream && text.length > lastLength) {
+          request.onChunk?.(text.slice(lastLength));
+          lastLength = text.length;
+        }
+        finish({
           status: response.status,
           ok: response.status >= 200 && response.status < 300,
-          text: response.responseText,
+          text,
           headers: parseResponseHeaders(response.responseHeaders),
-        }),
-      onerror: reject,
-      onabort: () => reject(new DOMException("Aborted", "AbortError")),
-    });
-    request.signal?.addEventListener("abort", () => handle.abort?.(), {
-      once: true,
-    });
+        });
+      },
+      onerror: (error) => fail(error),
+      onabort: () => fail(new DOMException("Aborted", "AbortError")),
+    };
+    if (useStream) {
+      details.responseType = "text";
+      details.onprogress = (response) => {
+        const full = String(response.responseText || "");
+        if (full.length > lastLength) {
+          request.onChunk?.(full.slice(lastLength));
+          lastLength = full.length;
+        }
+      };
+    }
+    const handle = GM_xmlhttpRequest(details);
+
+    request.signal?.addEventListener(
+      "abort",
+      () => {
+        try {
+          handle.abort?.();
+        } catch {
+          /* ignore */
+        }
+        fail(new DOMException("Aborted", "AbortError"));
+      },
+      { once: true },
+    );
   });
 }
 
-function registerShortcuts(bindings: readonly ShortcutBinding[]): () => void {
-  const listener = (event: KeyboardEvent): void => {
-    const chord = shortcutChordFromEvent(event as ShortcutKeyboardEvent);
-    const binding = bindings.find((candidate) => candidate.chord === chord);
-    if (!binding) return;
-    event.preventDefault();
-    void binding.handler();
-  };
-  document.addEventListener("keydown", listener, true);
-  return () => document.removeEventListener("keydown", listener, true);
+function registerShortcuts(
+  bindings: readonly ShortcutBinding[],
+  options: ShortcutRegisterOptions = {},
+): () => void {
+  return registerShortcutRuntime(bindings, {
+    ...options,
+    target: document,
+    capture: true,
+    stopOnMatch: true,
+  });
 }
 
 function onNavigate(listener: () => void): () => void {
-  window.addEventListener("popstate", listener);
-  window.addEventListener("hashchange", listener);
-  return () => {
-    window.removeEventListener("popstate", listener);
-    window.removeEventListener("hashchange", listener);
-  };
+  const pageWindow =
+    typeof unsafeWindow !== "undefined" && unsafeWindow ? unsafeWindow : window;
+  const handle = installSpaNavigateAdapter(
+    {
+      historyWindow: pageWindow,
+      eventWindow: pageWindow,
+      documentRef: document,
+      getHref: () => location.href,
+      pollIntervalMs: 2000,
+    },
+    listener,
+  );
+  return () => handle.dispose();
 }
 
 export function createUserscriptHost(): UserscriptHost {
@@ -130,3 +223,5 @@ export function createUserscriptHost(): UserscriptHost {
   };
 }
 
+// Re-export for tests that want host-level keyboard typing helpers.
+export type { ShortcutKeyboardEvent };

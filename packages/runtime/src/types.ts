@@ -9,6 +9,9 @@ export interface NetworkRequest {
   headers?: Record<string, string>;
   body?: string;
   signal?: AbortSignal;
+  /** When true, prefer streaming body and invoke onChunk as data arrives. */
+  stream?: boolean;
+  onChunk?: (chunk: string) => void;
 }
 
 export interface NetworkResponse {
@@ -36,8 +39,21 @@ export interface ShortcutBinding {
   handler: () => void | Promise<void>;
 }
 
+export interface ShortcutRegisterOptions {
+  /** Default true. When false, keydown is ignored. */
+  enabled?: boolean;
+  /**
+   * When true (default), ignore editable targets, IME composition,
+   * key-repeat and AltGraph — matching v6.0.2.
+   */
+  protectInput?: boolean;
+}
+
 export interface ShortcutAdapter {
-  register(bindings: readonly ShortcutBinding[]): () => void;
+  register(
+    bindings: readonly ShortcutBinding[],
+    options?: ShortcutRegisterOptions,
+  ): () => void;
 }
 
 export interface PageAdapter {
@@ -60,4 +76,3 @@ export interface SubBatchRuntime {
   page: PageAdapter;
   hub: HubAdapter;
 }
-

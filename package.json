@@ -14,9 +14,11 @@
     "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
     "test": "vitest run",
     "lint": "eslint . --max-warnings=0 && tsx scripts/verify-boundaries.ts",
-    "build:userscript": "tsx scripts/build-userscript.ts && pnpm verify:dist",
+    "build:userscript": "tsx scripts/build-userscript.ts --mode=pure && pnpm verify:dist",
+    "build:compat-userscript": "tsx scripts/build-userscript.ts --mode=compat && pnpm verify:compat-dist",
     "build": "pnpm build:userscript",
-    "verify:dist": "tsx scripts/verify-dist.ts"
+    "verify:dist": "tsx scripts/verify-dist.ts",
+    "verify:compat-dist": "tsx scripts/verify-compat-dist.ts"
   },
   "devDependencies": {
     "@eslint/js": "^9.33.0",

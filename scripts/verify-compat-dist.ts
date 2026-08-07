@@ -3,10 +3,17 @@ import { readFile, stat } from "node:fs/promises";
 import { resolve } from "node:path";
 import { Script } from "node:vm";
 
-import { LEGACY_BODY_MARKER } from "./userscript-build-utils";
+import {
+  LEGACY_BODY_MARKER,
+  stripUserscriptMetadata,
+} from "./userscript-build-utils";
 
 const projectRoot = process.cwd();
-const outputPath = resolve(projectRoot, "dist/userscript/subbatch.user.js");
+const outputPath = resolve(projectRoot, "dist/userscript/subbatch.compat.user.js");
+const legacyPath = resolve(
+  projectRoot,
+  "legacy/Bili-SubBatch-v6.0.2.user.js",
+);
 
 const requiredMetadata = [
   "// @version      6.1.0",
@@ -27,15 +34,12 @@ function hash(source: string): string {
 }
 
 /**
- * Verify pure monorepo userscript:
- * - single metadata header
- * - no runtime module deps
- * - parseable as a script
- * - NO full legacy body
+ * Verify compat userscript: monorepo bootstrap + byte-identical legacy body.
  */
 async function verify(): Promise<void> {
-  const [output, outputStats] = await Promise.all([
+  const [output, legacy, outputStats] = await Promise.all([
     readFile(outputPath, "utf8"),
+    readFile(legacyPath, "utf8"),
     stat(outputPath),
   ]);
   if (!output.startsWith("// ==UserScript==\n")) {
@@ -50,28 +54,24 @@ async function verify(): Promise<void> {
   if (/^\s*(?:import|export)\s/m.test(output) || /\brequire\s*\(/.test(output)) {
     throw new Error("Output contains a runtime module dependency");
   }
-  new Script(output, { filename: "subbatch.user.js" });
+  new Script(output, { filename: "subbatch.compat.user.js" });
 
-  if (output.includes(LEGACY_BODY_MARKER)) {
+  const marker = `${LEGACY_BODY_MARKER}\n`;
+  const markerIndex = output.indexOf(marker);
+  if (markerIndex < 0) throw new Error("Compatibility runtime marker not found");
+  const outputLegacyBody = output.slice(markerIndex + marker.length);
+  const expectedLegacyBody = stripUserscriptMetadata(legacy);
+  if (outputLegacyBody !== expectedLegacyBody) {
     throw new Error(
-      "Pure userscript must not include the legacy compatibility body marker",
+      `Legacy behavior body mismatch: expected ${hash(expectedLegacyBody)}, received ${hash(outputLegacyBody)}`,
     );
   }
-  // Heuristic: frozen legacy body is ~400KB+ of Studio/DOM code.
-  if (outputStats.size > 350_000) {
-    throw new Error(
-      `Pure userscript is suspiciously large (${outputStats.size} bytes); possible legacy body inclusion`,
-    );
-  }
-  if (!output.includes("Build mode: pure") && !output.includes("pure runtime")) {
-    throw new Error("Pure userscript missing monorepo pure runtime marker");
-  }
-  if (!output.includes("SubBatchMonorepo") && !output.includes("createUserscriptRuntime")) {
-    throw new Error("Pure userscript missing monorepo runtime composition");
+  if (outputStats.size <= Buffer.byteLength(legacy)) {
+    throw new Error("Compat output is unexpectedly smaller than the Golden Reference");
   }
 
   console.log(
-    `Verified pure ${outputPath}: metadata, single-file monorepo bundle, no legacy body (sha256 ${hash(output)})`,
+    `Verified compat ${outputPath}: metadata, monorepo bootstrap, byte-identical Legacy body`,
   );
 }
 

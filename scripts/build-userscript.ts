@@ -13,6 +13,8 @@ import {
   stripUserscriptMetadata,
 } from "./userscript-build-utils";
 
+export type UserscriptBuildMode = "pure" | "compat";
+
 const projectRoot = process.cwd();
 const legacyPath = resolve(
   projectRoot,
@@ -21,7 +23,8 @@ const legacyPath = resolve(
 const outputDirectory = resolve(projectRoot, "dist/userscript");
 const buildDirectory = resolve(outputDirectory, ".build");
 const bundlePath = resolve(buildDirectory, "subbatch.bundle.js");
-const outputPath = resolve(outputDirectory, "subbatch.user.js");
+const pureOutputPath = resolve(outputDirectory, "subbatch.user.js");
+const compatOutputPath = resolve(outputDirectory, "subbatch.compat.user.js");
 const expectedLegacyHash =
   "26FAD055B6449205DA0EF067F5F943CF94B84141FAAE4911EA2B50F84A77BF50";
 
@@ -29,7 +32,19 @@ function sha256(source: string): string {
   return createHash("sha256").update(source).digest("hex").toUpperCase();
 }
 
-async function buildUserscript(): Promise<void> {
+function parseMode(argv: string[]): UserscriptBuildMode {
+  const modeArg = argv.find((arg) => arg.startsWith("--mode="));
+  if (modeArg) {
+    const value = modeArg.slice("--mode=".length);
+    if (value === "pure" || value === "compat") return value;
+    throw new Error(`Unknown build mode: ${value}`);
+  }
+  if (argv.includes("--compat")) return "compat";
+  if (argv.includes("--pure")) return "pure";
+  return "pure";
+}
+
+async function assertLegacyHash(): Promise<Buffer> {
   const legacyBytes = await readFile(legacyPath);
   const legacyHash = createHash("sha256").update(legacyBytes).digest("hex").toUpperCase();
   if (legacyHash !== expectedLegacyHash) {
@@ -37,7 +52,10 @@ async function buildUserscript(): Promise<void> {
       `Legacy Golden Reference changed: expected ${expectedLegacyHash}, received ${legacyHash}`,
     );
   }
+  return legacyBytes;
+}
 
+async function buildBundle(): Promise<string> {
   await rm(buildDirectory, { recursive: true, force: true });
   await mkdir(outputDirectory, { recursive: true });
   await build({
@@ -45,25 +63,76 @@ async function buildUserscript(): Promise<void> {
     root: projectRoot,
     logLevel: "warn",
   });
+  return readFile(bundlePath, "utf8");
+}
 
-  const bootstrap = await readFile(bundlePath, "utf8");
-  const legacySource = legacyBytes.toString("utf8");
-  const legacyBody = stripUserscriptMetadata(legacySource);
+/**
+ * Pure monorepo userscript: apps/userscript + packages/* only.
+ * Forbidden: concatenating the full legacy body.
+ */
+async function buildPureUserscript(): Promise<void> {
+  // Still verify golden hash so drift is caught even on pure builds.
+  await assertLegacyHash();
+  const bootstrap = await buildBundle();
+  if (bootstrap.includes(LEGACY_BODY_MARKER)) {
+    throw new Error("Pure bundle must not embed the legacy compatibility marker");
+  }
+  if (/Bili SubBatch \(loop-bilibili\)[\s\S]{200,}function detectContext\(/.test(bootstrap)) {
+    throw new Error("Pure bundle appears to contain a full legacy body");
+  }
+
+  const output = [
+    renderUserscriptMetadata(userscriptMetadata),
+    "",
+    `// SubBatch Monorepo pure runtime (${userscriptMetadata.version})`,
+    `// Build mode: pure — no legacy body`,
+    bootstrap.trim(),
+    "",
+  ].join("\n");
+
+  if (output.includes(LEGACY_BODY_MARKER)) {
+    throw new Error("Pure userscript output must not include the legacy body marker");
+  }
+
+  await writeFile(pureOutputPath, output, "utf8");
+  await rm(buildDirectory, { recursive: true, force: true });
+  console.log(
+    `Built pure ${pureOutputPath} (${Buffer.byteLength(output)} bytes, sha256 ${sha256(output)})`,
+  );
+}
+
+/**
+ * Compat userscript: monorepo bootstrap + byte-identical v6.0.2 body.
+ * Safety net while module takeover is incomplete.
+ */
+async function buildCompatUserscript(): Promise<void> {
+  const legacyBytes = await assertLegacyHash();
+  const bootstrap = await buildBundle();
+  const legacyBody = stripUserscriptMetadata(legacyBytes.toString("utf8"));
   const output = [
     renderUserscriptMetadata(userscriptMetadata),
     "",
     `// SubBatch Monorepo runtime bootstrap (${userscriptMetadata.version})`,
+    `// Build mode: compat — includes frozen v6.0.2 behavior body`,
     bootstrap.trim(),
     "",
     LEGACY_BODY_MARKER,
     legacyBody,
   ].join("\n");
-  await writeFile(outputPath, output, "utf8");
-  await rm(buildDirectory, { recursive: true, force: true });
 
+  await writeFile(compatOutputPath, output, "utf8");
+  // Keep historical path as an alias to compat until pure fully ships product UI.
+  // Pure production target remains subbatch.user.js (no legacy body).
+  await rm(buildDirectory, { recursive: true, force: true });
   console.log(
-    `Built ${outputPath} (${Buffer.byteLength(output)} bytes, sha256 ${sha256(output)})`,
+    `Built compat ${compatOutputPath} (${Buffer.byteLength(output)} bytes, sha256 ${sha256(output)})`,
   );
 }
 
-void buildUserscript();
+async function main(): Promise<void> {
+  const mode = parseMode(process.argv.slice(2));
+  if (mode === "compat") await buildCompatUserscript();
+  else await buildPureUserscript();
+}
+
+void main();

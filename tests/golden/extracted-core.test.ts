@@ -106,6 +106,12 @@ describe("P2 extracted Pure Core", () => {
         subtitle: "字幕",
       }),
     ).toBe("标题 · BV1TEST\n字幕\n{{unknown}}");
+    expect(
+      renderPromptTemplate(
+        "{{chunkStart}}|{{coreStart}}|{{chunkEnd}}",
+        { chunkStart: "00:00", coreStart: "00:30", chunkEnd: "02:00" },
+      ),
+    ).toBe("00:00|00:30|02:00");
 
     const markdown =
       "正文 [BV1TEST P2 03:21]\n```mermaid\ngraph TD\nA[概念 [BV1TEST P2 03:21]] --> B[结论 [P2 04:00]]\n```";
