@@ -1,5 +1,5 @@
 export const LEGACY_BODY_MARKER =
-  "// ---- SubBatch v6.0.2 behavior-frozen compatibility runtime ----";
+  "// ---- SubBatch maintained full-feature compatibility runtime ----";
 
 export function stripUserscriptMetadata(source: string): string {
   const closingMarker = "// ==/UserScript==";
@@ -10,4 +10,3 @@ export function stripUserscriptMetadata(source: string): string {
   else if (source.startsWith("\n", bodyStart)) bodyStart += 1;
   return source.slice(bodyStart);
 }
-

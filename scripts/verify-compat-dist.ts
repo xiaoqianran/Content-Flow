@@ -10,10 +10,8 @@ import {
 
 const projectRoot = process.cwd();
 const outputPath = resolve(projectRoot, "dist/userscript/subbatch.compat.user.js");
-const legacyPath = resolve(
-  projectRoot,
-  "legacy/Bili-SubBatch-v6.0.2.user.js",
-);
+const maintainedSourcePath = resolve(projectRoot, "loop-bilibili.js");
+const productionOutputPath = resolve(projectRoot, "dist/userscript/subbatch.user.js");
 
 const requiredMetadata = [
   "// @version      6.1.0",
@@ -34,14 +32,18 @@ function hash(source: string): string {
 }
 
 /**
- * Verify compat userscript: monorepo bootstrap + byte-identical legacy body.
+ * Verify compat userscript: monorepo bootstrap + byte-identical maintained body.
  */
 async function verify(): Promise<void> {
-  const [output, legacy, outputStats] = await Promise.all([
+  const [output, maintainedSource, productionOutput, outputStats] = await Promise.all([
     readFile(outputPath, "utf8"),
-    readFile(legacyPath, "utf8"),
+    readFile(maintainedSourcePath, "utf8"),
+    readFile(productionOutputPath, "utf8"),
     stat(outputPath),
   ]);
+  if (output !== productionOutput) {
+    throw new Error("Compatibility alias must be byte-identical to the production userscript");
+  }
   if (!output.startsWith("// ==UserScript==\n")) {
     throw new Error("Userscript metadata must be the first output bytes");
   }
@@ -59,19 +61,19 @@ async function verify(): Promise<void> {
   const marker = `${LEGACY_BODY_MARKER}\n`;
   const markerIndex = output.indexOf(marker);
   if (markerIndex < 0) throw new Error("Compatibility runtime marker not found");
-  const outputLegacyBody = output.slice(markerIndex + marker.length);
-  const expectedLegacyBody = stripUserscriptMetadata(legacy);
-  if (outputLegacyBody !== expectedLegacyBody) {
+  const outputBehaviorBody = output.slice(markerIndex + marker.length);
+  const expectedBehaviorBody = stripUserscriptMetadata(maintainedSource);
+  if (outputBehaviorBody !== expectedBehaviorBody) {
     throw new Error(
-      `Legacy behavior body mismatch: expected ${hash(expectedLegacyBody)}, received ${hash(outputLegacyBody)}`,
+      `Maintained behavior body mismatch: expected ${hash(expectedBehaviorBody)}, received ${hash(outputBehaviorBody)}`,
     );
   }
-  if (outputStats.size <= Buffer.byteLength(legacy)) {
-    throw new Error("Compat output is unexpectedly smaller than the Golden Reference");
+  if (outputStats.size <= Buffer.byteLength(maintainedSource)) {
+    throw new Error("Compat output is unexpectedly smaller than the maintained source");
   }
 
   console.log(
-    `Verified compat ${outputPath}: metadata, monorepo bootstrap, byte-identical Legacy body`,
+    `Verified compat alias ${outputPath}: identical to production and includes exact maintained behavior body`,
   );
 }
 

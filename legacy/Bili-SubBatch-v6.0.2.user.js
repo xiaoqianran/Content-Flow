@@ -26,6 +26,8 @@
 // @grant        GM_getValue
 // @run-at       document-idle
 // @license      MIT
+// @downloadURL https://update.greasyfork.org/scripts/589638/Bili%20SubBatch%20%28loop-bilibili%29.user.js
+// @updateURL https://update.greasyfork.org/scripts/589638/Bili%20SubBatch%20%28loop-bilibili%29.meta.js
 // ==/UserScript==
 
 /**

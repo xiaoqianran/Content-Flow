@@ -28,13 +28,13 @@ export interface BilibiliPageHints {
   fromVideoPath?: boolean;
 }
 
-/** Preserve v6 extractBvid quirks (case-insensitive BV match can yield `BVid` from `bvid=`). */
+/** Extract a BV id without confusing the `bvid` query-parameter name for an id. */
 export function extractBvid(text: string | null | undefined): string {
   if (!text) return "";
   const value = String(text).trim();
   if (!value) return "";
-  if (/^BV[\w]+$/i.test(value)) return `BV${value.slice(2)}`;
-  const match = value.match(/BV[\w]+/i);
+  if (/^BV(?!id$)[A-Za-z0-9]+$/i.test(value)) return `BV${value.slice(2)}`;
+  const match = value.match(/BV(?!id\b)[A-Za-z0-9]+/i);
   return match ? `BV${match[0].slice(2)}` : "";
 }
 
@@ -75,7 +75,9 @@ export function extractUrlHints(href: string): BilibiliPageHints {
     return hints;
   }
   hints.bvid =
-    extractBvid(url.href) || extractBvid(url.searchParams.get("bvid") || "") || "";
+    extractBvid(url.searchParams.get("bvid") || "") ||
+    extractBvid(url.pathname) ||
+    "";
   hints.keyword = (url.searchParams.get("keyword") || "").trim();
   const sid =
     url.searchParams.get("sid") ||
@@ -246,8 +248,8 @@ export function detectContext(
         url.searchParams.get("season_id") ||
         merged.season_id;
       const bvid =
-        extractBvid(href) ||
         extractBvid(url.searchParams.get("bvid") || "") ||
+        extractBvid(url.pathname) ||
         merged.bvid ||
         "";
       const page = Math.max(
@@ -311,8 +313,8 @@ export function detectContext(
 
     if (/\/list\//i.test(path)) {
       const bvid2 =
-        extractBvid(href) ||
         extractBvid(url.searchParams.get("bvid") || "") ||
+        extractBvid(url.pathname) ||
         merged.bvid ||
         "";
       if (bvid2) {

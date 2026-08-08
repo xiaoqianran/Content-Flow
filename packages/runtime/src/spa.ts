@@ -47,7 +47,70 @@ export interface SpaNavigateHandle {
   dispose: () => void;
 }
 
-type HistoryMethod = "pushState" | "replaceState";
+interface SharedHistoryPatch {
+  originalPush: SpaHistoryLike["pushState"];
+  originalReplace: SpaHistoryLike["replaceState"];
+  wrappedPush: SpaHistoryLike["pushState"];
+  wrappedReplace: SpaHistoryLike["replaceState"];
+  callbacks: Set<() => void>;
+}
+
+const historyPatches = new WeakMap<SpaHistoryLike, SharedHistoryPatch>();
+
+function subscribeHistoryPatch(
+  history: SpaHistoryLike,
+  callback: () => void,
+): () => void {
+  let patch = historyPatches.get(history);
+  if (!patch) {
+    const originalPush = history.pushState;
+    const originalReplace = history.replaceState;
+    const callbacks = new Set<() => void>();
+    const notify = (): void => {
+      for (const subscriber of [...callbacks]) subscriber();
+    };
+    const wrappedPush: SpaHistoryLike["pushState"] = function wrappedPush(
+      this: SpaHistoryLike,
+      ...args: never[]
+    ) {
+      const result = originalPush.apply(this, args);
+      notify();
+      return result;
+    };
+    const wrappedReplace: SpaHistoryLike["replaceState"] =
+      function wrappedReplace(this: SpaHistoryLike, ...args: never[]) {
+        const result = originalReplace.apply(this, args);
+        notify();
+        return result;
+      };
+    patch = {
+      originalPush,
+      originalReplace,
+      wrappedPush,
+      wrappedReplace,
+      callbacks,
+    };
+    history.pushState = wrappedPush;
+    history.replaceState = wrappedReplace;
+    historyPatches.set(history, patch);
+  }
+  patch.callbacks.add(callback);
+
+  return () => {
+    const current = historyPatches.get(history);
+    if (!current) return;
+    current.callbacks.delete(callback);
+    if (current.callbacks.size) return;
+    // Do not overwrite a wrapper installed by the page after ours.
+    if (history.pushState === current.wrappedPush) {
+      history.pushState = current.originalPush;
+    }
+    if (history.replaceState === current.wrappedReplace) {
+      history.replaceState = current.originalReplace;
+    }
+    historyPatches.delete(history);
+  };
+}
 
 export function installSpaNavigateAdapter(
   options: InstallSpaNavigateOptions,
@@ -80,27 +143,10 @@ export function installSpaNavigateAdapter(
     setTimeoutFn(() => check(), 0);
   };
 
-  const originalPush = historyWindow.history.pushState.bind(historyWindow.history);
-  const originalReplace = historyWindow.history.replaceState.bind(
+  const unsubscribeHistory = subscribeHistoryPatch(
     historyWindow.history,
+    scheduleCheck,
   );
-
-  const wrap =
-    (method: HistoryMethod, original: (...args: never[]) => unknown) =>
-    function wrapped(this: SpaHistoryLike, ...args: never[]) {
-      const result = original.apply(this, args);
-      scheduleCheck();
-      return result;
-    };
-
-  historyWindow.history.pushState = wrap(
-    "pushState",
-    originalPush as (...args: never[]) => unknown,
-  ) as SpaHistoryLike["pushState"];
-  historyWindow.history.replaceState = wrap(
-    "replaceState",
-    originalReplace as (...args: never[]) => unknown,
-  ) as SpaHistoryLike["replaceState"];
 
   const onPopState = (): void => check();
   const onHashChange = (): void => check();
@@ -126,9 +172,7 @@ export function installSpaNavigateAdapter(
     dispose: () => {
       if (disposed) return;
       disposed = true;
-      historyWindow.history.pushState = originalPush as SpaHistoryLike["pushState"];
-      historyWindow.history.replaceState =
-        originalReplace as SpaHistoryLike["replaceState"];
+      unsubscribeHistory();
       eventWindow.removeEventListener("popstate", onPopState);
       eventWindow.removeEventListener("hashchange", onHashChange);
       eventWindow.removeEventListener("pageshow", onPageShow);

@@ -131,4 +131,38 @@ describe("SPA route adapter", () => {
 
     vi.useRealTimers();
   });
+
+  it("keeps multiple subscribers isolated and restores exact history methods", () => {
+    const { windowLike, documentRef, getHref } = createMockSpa();
+    const originalPush = windowLike.history.pushState;
+    const originalReplace = windowLike.history.replaceState;
+    const first = vi.fn();
+    const second = vi.fn();
+    const options = {
+      historyWindow: windowLike as never,
+      eventWindow: windowLike as never,
+      documentRef: documentRef as never,
+      getHref,
+      pollIntervalMs: 0,
+      setTimeoutFn: ((fn: () => void) => {
+        fn();
+        return 0 as unknown as ReturnType<typeof setTimeout>;
+      }) as typeof setTimeout,
+    };
+
+    const firstHandle = installSpaNavigateAdapter(options, first);
+    const secondHandle = installSpaNavigateAdapter(options, second);
+    windowLike.history.pushState({}, "", "https://www.bilibili.com/video/BV1MULTI?p=1");
+    expect(first).toHaveBeenCalledTimes(1);
+    expect(second).toHaveBeenCalledTimes(1);
+
+    firstHandle.dispose();
+    windowLike.history.pushState({}, "", "https://www.bilibili.com/video/BV1MULTI?p=2");
+    expect(first).toHaveBeenCalledTimes(1);
+    expect(second).toHaveBeenCalledTimes(2);
+
+    secondHandle.dispose();
+    expect(windowLike.history.pushState).toBe(originalPush);
+    expect(windowLike.history.replaceState).toBe(originalReplace);
+  });
 });

@@ -7,27 +7,34 @@ const legacyPath = fileURLToPath(
 
 export const legacySource = readFileSync(legacyPath, "utf8");
 
-export function extractLegacyFunctionSource(name: string): string {
+export function extractFunctionSource(source: string, name: string): string {
   const marker = `function ${name}(`;
-  const start = legacySource.indexOf(marker);
+  const start = source.indexOf(marker);
   if (start < 0) throw new Error(`Legacy function not found: ${name}`);
 
-  const bodyStart = legacySource.indexOf("{", start + marker.length);
+  const bodyStart = source.indexOf("{", start + marker.length);
   if (bodyStart < 0) throw new Error(`Legacy function body not found: ${name}`);
 
   let depth = 0;
-  for (let index = bodyStart; index < legacySource.length; index += 1) {
-    const char = legacySource[index];
+  for (let index = bodyStart; index < source.length; index += 1) {
+    const char = source[index];
     if (char === "{") depth += 1;
     if (char === "}") {
       depth -= 1;
-      if (depth === 0) return legacySource.slice(start, index + 1);
+      if (depth === 0) return source.slice(start, index + 1);
     }
   }
   throw new Error(`Unterminated legacy function: ${name}`);
 }
 
-export function legacyFunction<TFunction extends (...args: never[]) => unknown>(
+export function extractLegacyFunctionSource(name: string): string {
+  return extractFunctionSource(legacySource, name);
+}
+
+export function sourceFunction<
+  TFunction extends (...args: never[]) => unknown,
+>(
+  source: string,
   name: string,
   scope: Record<string, unknown> = {},
 ): TFunction {
@@ -35,8 +42,14 @@ export function legacyFunction<TFunction extends (...args: never[]) => unknown>(
   const values = Object.values(scope);
   const factory = new Function(
     ...names,
-    `"use strict"; return (${extractLegacyFunctionSource(name)});`,
+    `"use strict"; return (${extractFunctionSource(source, name)});`,
   );
   return factory(...values) as TFunction;
 }
 
+export function legacyFunction<TFunction extends (...args: never[]) => unknown>(
+  name: string,
+  scope: Record<string, unknown> = {},
+): TFunction {
+  return sourceFunction<TFunction>(legacySource, name, scope);
+}

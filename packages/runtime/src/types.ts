@@ -9,6 +9,15 @@ export interface NetworkRequest {
   headers?: Record<string, string>;
   body?: string;
   signal?: AbortSignal;
+  credentials?: RequestCredentials;
+  cache?: RequestCache;
+  /**
+   * `network-error` retries through the privileged transport only when fetch
+   * never produced a response. `network-or-http` additionally retries failed
+   * idempotent requests. Unsafe POST requests are never retried after a
+   * response has started.
+   */
+  fallback?: "never" | "network-error" | "network-or-http";
   /** When true, prefer streaming body and invoke onChunk as data arrives. */
   stream?: boolean;
   onChunk?: (chunk: string) => void;

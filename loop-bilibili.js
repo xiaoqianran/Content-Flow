@@ -26,6 +26,8 @@
 // @grant        GM_getValue
 // @run-at       document-idle
 // @license      MIT
+// @downloadURL https://update.greasyfork.org/scripts/589638/Bili%20SubBatch%20%28loop-bilibili%29.user.js
+// @updateURL https://update.greasyfork.org/scripts/589638/Bili%20SubBatch%20%28loop-bilibili%29.meta.js
 // ==/UserScript==
 
 /**
@@ -973,8 +975,8 @@
     if (!text) return "";
     text = String(text).trim();
     if (!text) return "";
-    if (/^BV[\w]+$/i.test(text)) return "BV" + text.slice(2);
-    const m = text.match(/BV[\w]+/i);
+    if (/^BV(?!id$)[A-Za-z0-9]+$/i.test(text)) return "BV" + text.slice(2);
+    const m = text.match(/BV(?!id\b)[A-Za-z0-9]+/i);
     return m ? "BV" + m[0].slice(2) : "";
   }
 
@@ -1437,8 +1439,8 @@
       return hints;
     }
     hints.bvid =
-      extractBvid(u.href) ||
       extractBvid(u.searchParams.get("bvid") || "") ||
+      extractBvid(u.pathname) ||
       "";
     hints.keyword = (u.searchParams.get("keyword") || "").trim();
     const sid =
@@ -8786,12 +8788,15 @@
       processedSubtitle: String(vars?.processedSubtitle || ""),
       chunkIndex: String(vars?.chunkIndex || ""),
       chunkCount: String(vars?.chunkCount || ""),
+      chunkStart: String(vars?.chunkStart || ""),
+      coreStart: String(vars?.coreStart || ""),
+      chunkEnd: String(vars?.chunkEnd || ""),
       anchorText: String(vars?.anchorText || ""),
       sourceContext: String(vars?.sourceContext || ""),
       ancestorPath: String(vars?.ancestorPath || ""),
       question: String(vars?.question || ""),
     };
-    return String(template || "").replace(/\{\{\s*(title|bvid|author|subtitle|rawSubtitle|processedSubtitle|chunkIndex|chunkCount|anchorText|sourceContext|ancestorPath|question)\s*\}\}/g, (_, key) => values[key] ?? "");
+    return String(template || "").replace(/\{\{\s*(title|bvid|author|subtitle|rawSubtitle|processedSubtitle|chunkIndex|chunkCount|chunkStart|coreStart|chunkEnd|anchorText|sourceContext|ancestorPath|question)\s*\}\}/g, (_, key) => values[key] ?? "");
   }
 
   function makeAiProfileId() {

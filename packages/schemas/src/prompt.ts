@@ -21,7 +21,7 @@ export interface Prompt {
 
 /**
  * LLM profile shape compatible with GM storage key
- * `bili-subbatch-ai-config-v1`.
+ * `bili-subbatch-ai-profiles-v1` (schema version 4).
  */
 export interface LlmProfile {
   id: string;
@@ -52,5 +52,6 @@ export function normalizePromptStage(value: unknown): PromptStage {
   if (value === "postprocess" || value === "postprocessing") return "postprocess";
   if (value === "knowledge") return "knowledge";
   if (value === "preprocess" || value === "preprocessing") return "preprocess";
-  return "preprocess";
+  // v1/v2 prompt records had no stage and were all POST prompts.
+  return "postprocess";
 }

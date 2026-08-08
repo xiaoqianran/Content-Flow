@@ -11,13 +11,16 @@
   },
   "scripts": {
     "dev:userscript": "vite --config apps/userscript/vite.config.ts --watch",
-    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
+    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json && pnpm typecheck:projects",
+    "typecheck:projects": "tsc -b --pretty false",
     "test": "vitest run",
     "lint": "eslint . --max-warnings=0 && tsx scripts/verify-boundaries.ts",
-    "build:userscript": "tsx scripts/build-userscript.ts --mode=pure && pnpm verify:dist",
-    "build:compat-userscript": "tsx scripts/build-userscript.ts --mode=compat && pnpm verify:compat-dist",
+    "build:userscript": "tsx scripts/build-userscript.ts --mode=compat && pnpm verify:dist && pnpm verify:compat-dist",
+    "build:pure-userscript": "tsx scripts/build-userscript.ts --mode=pure && pnpm verify:pure-dist",
+    "build:compat-userscript": "pnpm build:userscript",
     "build": "pnpm build:userscript",
     "verify:dist": "tsx scripts/verify-dist.ts",
+    "verify:pure-dist": "tsx scripts/verify-pure-dist.ts",
     "verify:compat-dist": "tsx scripts/verify-compat-dist.ts"
   },
   "devDependencies": {

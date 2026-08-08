@@ -36,6 +36,8 @@ describe("Migration contracts differential", () => {
     expect(normalizePromptStage("preprocessing")).toBe("preprocess");
     expect(normalizePromptStage("postprocessing")).toBe("postprocess");
     expect(normalizePromptStage("knowledge")).toBe("knowledge");
+    expect(normalizePromptStage(undefined)).toBe("postprocess");
+    expect(normalizePromptStage("unknown")).toBe("postprocess");
 
     // Legacy source freezes these stage string literals in product data.
     for (const stage of ["preprocess", "postprocess", "knowledge"] as PromptStage[]) {
@@ -101,6 +103,13 @@ describe("Migration contracts differential", () => {
     expect(renderPromptTemplate("{{ title }} · {{bvid}}\n{{subtitle}}\n{{unknown}}", baseVars)).toBe(
       legacyRender("{{ title }} · {{bvid}}\n{{subtitle}}\n{{unknown}}", baseVars),
     );
+    expect(renderPromptTemplate("{{title}}|{{chunkIndex}}", {
+      title: false,
+      chunkIndex: 0,
+    })).toBe(legacyRender("{{title}}|{{chunkIndex}}", {
+      title: false,
+      chunkIndex: 0,
+    }));
   });
 
   it("shortcut pure helpers match legacy chords", () => {
@@ -171,6 +180,8 @@ describe("Migration contracts differential", () => {
   it("v6 storage keys and builtin prompt ids stay frozen", () => {
     expect(V6_STORAGE_KEYS.prompts).toBe("bili-subbatch-prompts-v1");
     expect(V6_STORAGE_KEYS.shortcuts).toBe("bili-subbatch-shortcuts-v1");
+    expect(V6_STORAGE_KEYS.aiProfiles).toBe("bili-subbatch-ai-profiles-v1");
+    expect(V6_STORAGE_KEYS.aiLegacy).toBe("bili-subbatch-ai-v2");
     expect(V6_BUILTIN_PROMPT_IDS).toEqual({
       preprocess: "builtin-subtitle-normalizer",
       postprocess: "builtin-mermaid-learning-map",
@@ -178,6 +189,9 @@ describe("Migration contracts differential", () => {
     });
     expect(legacySource).toContain(V6_STORAGE_KEYS.prompts);
     expect(legacySource).toContain(V6_STORAGE_KEYS.shortcuts);
+    for (const key of Object.values(V6_STORAGE_KEYS)) {
+      expect(legacySource).toContain(key);
+    }
     expect(legacySource).toContain(V6_BUILTIN_PROMPT_IDS.preprocess);
     expect(legacySource).toContain(V6_BUILTIN_PROMPT_IDS.postprocess);
     expect(legacySource).toContain(V6_BUILTIN_PROMPT_IDS.knowledge);

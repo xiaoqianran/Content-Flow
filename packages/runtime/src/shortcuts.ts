@@ -29,6 +29,8 @@ export interface RegisterShortcutRuntimeOptions extends ShortcutRegisterOptions 
    * When true (default), call preventDefault + stopImmediatePropagation on match.
    */
   stopOnMatch?: boolean;
+  /** Receives synchronous or asynchronous binding failures. */
+  onError?: (error: unknown) => void;
 }
 
 /**
@@ -69,7 +71,13 @@ export function registerShortcutRuntime(
       native.preventDefault?.();
       native.stopImmediatePropagation?.();
     }
-    void binding.handler();
+    try {
+      void Promise.resolve(binding.handler()).catch((error: unknown) => {
+        options.onError?.(error);
+      });
+    } catch (error) {
+      options.onError?.(error);
+    }
   };
 
   target.addEventListener("keydown", listener, capture);

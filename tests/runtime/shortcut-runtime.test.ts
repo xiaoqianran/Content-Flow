@@ -63,4 +63,26 @@ describe("Shortcut runtime protections", () => {
     target.dispatch({ ...base, target: null });
     expect(handler).toHaveBeenCalledTimes(1);
   });
+
+  it("reports asynchronous binding failures without an unhandled rejection", async () => {
+    const target = createTarget();
+    const onError = vi.fn();
+    registerShortcutRuntime(
+      [
+        {
+          chord: "Ctrl+KeyB",
+          handler: async () => {
+            throw new Error("shortcut failed");
+          },
+        },
+      ],
+      { target, onError },
+    );
+
+    target.dispatch({ code: "KeyB", ctrlKey: true, target: null });
+    await vi.waitFor(() => expect(onError).toHaveBeenCalledTimes(1));
+    expect(onError.mock.calls[0]?.[0]).toMatchObject({
+      message: "shortcut failed",
+    });
+  });
 });

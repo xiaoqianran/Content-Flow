@@ -32,7 +32,9 @@ export function renderPromptTemplate(
   variables: PromptVariables | null | undefined,
 ): string {
   const values = Object.fromEntries(
-    PROMPT_KEYS.map((key) => [key, String(variables?.[key] ?? "")]),
+    // Legacy uses `value || ""`; retain false/zero compatibility while the
+    // new chunk boundary variables extend the supported key set.
+    PROMPT_KEYS.map((key) => [key, String(variables?.[key] || "")]),
   ) as Record<PromptVariableKey, string>;
   return String(template || "").replace(
     PROMPT_KEY_PATTERN,

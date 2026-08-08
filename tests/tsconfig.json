@@ -1,6 +1,12 @@
 {
   "extends": "../tsconfig.base.json",
   "compilerOptions": { "composite": true, "types": ["vitest/globals", "node"] },
-  "include": ["**/*.ts"]
+  "include": ["**/*.ts"],
+  "references": [
+    { "path": "../packages/core" },
+    { "path": "../packages/bilibili" },
+    { "path": "../packages/runtime" },
+    { "path": "../packages/schemas" },
+    { "path": "../apps/userscript" }
+  ]
 }
-

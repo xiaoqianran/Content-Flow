@@ -7,7 +7,10 @@
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,
-    "noEmit": true,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "rootDir": ".",
+    "outDir": "dist/types",
     "resolveJsonModule": true,
     "isolatedModules": true,
     "skipLibCheck": true,
@@ -23,4 +26,3 @@
     }
   }
 }
-

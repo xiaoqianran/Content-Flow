@@ -3,11 +3,20 @@
  * New monorepo code must keep these exact strings so existing user data loads.
  */
 export const V6_STORAGE_KEYS = {
+  ui: "bili-subbatch-ui-v2",
+  aiLegacy: "bili-subbatch-ai-v2",
+  aiProfiles: "bili-subbatch-ai-profiles-v1",
+  /** @deprecated Use aiProfiles. Kept as a source-compatible alias. */
+  aiConfig: "bili-subbatch-ai-profiles-v1",
   prompts: "bili-subbatch-prompts-v1",
   shortcuts: "bili-subbatch-shortcuts-v1",
-  aiConfig: "bili-subbatch-ai-config-v1",
   postTasks: "bili-subbatch-post-tasks-v1",
   knowledgeModel: "bili-subbatch-knowledge-model-v1",
+  preprocessEnabled: "bili-subbatch-preprocess-enabled-v1",
+  preprocessModel: "bili-subbatch-preprocess-model-v1",
+  preprocessConcurrency: "bili-subbatch-preprocess-concurrency-v1",
+  preprocessTargetMinutes: "bili-subbatch-preprocess-target-minutes-v1",
+  preprocessOverlapSeconds: "bili-subbatch-preprocess-overlap-seconds-v1",
   preprocessMaxChars: "bili-subbatch-preprocess-max-chars-v1",
   preprocessRetries: "bili-subbatch-preprocess-retries-v1",
   autoCapture: "bili-subbatch-auto-capture-v1",
@@ -17,6 +26,7 @@ export const V6_STORAGE_KEYS = {
 } as const;
 
 export const V6_SCHEMA_VERSIONS = {
+  aiProfiles: 4,
   prompts: 5,
   shortcuts: 2,
   postTasks: 1,

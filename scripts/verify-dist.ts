@@ -3,10 +3,14 @@ import { readFile, stat } from "node:fs/promises";
 import { resolve } from "node:path";
 import { Script } from "node:vm";
 
-import { LEGACY_BODY_MARKER } from "./userscript-build-utils";
+import {
+  LEGACY_BODY_MARKER,
+  stripUserscriptMetadata,
+} from "./userscript-build-utils";
 
 const projectRoot = process.cwd();
 const outputPath = resolve(projectRoot, "dist/userscript/subbatch.user.js");
+const maintainedSourcePath = resolve(projectRoot, "loop-bilibili.js");
 
 const requiredMetadata = [
   "// @version      6.1.0",
@@ -19,23 +23,31 @@ const requiredMetadata = [
   "// @grant        GM_info",
   "// @grant        GM_setValue",
   "// @grant        GM_getValue",
+  "// @grant        GM_deleteValue",
   "// @grant        unsafeWindow",
 ];
+
+const requiredCapabilities = [
+  "function boot()",
+  "function detectContext(",
+  "function loadAllListItems(",
+  "function fetchSubtitle(",
+  "function splitCuesForPreprocess(",
+  "function requestChatCompletion(",
+  "function renderAiResultTabs(",
+  "function parseKnowledgeOutput(",
+  "function bindGlobalShortcuts(",
+  "bili-subbatch-knowledge-v1",
+] as const;
 
 function hash(source: string): string {
   return createHash("sha256").update(source).digest("hex");
 }
 
-/**
- * Verify pure monorepo userscript:
- * - single metadata header
- * - no runtime module deps
- * - parseable as a script
- * - NO full legacy body
- */
 async function verify(): Promise<void> {
-  const [output, outputStats] = await Promise.all([
+  const [output, maintainedSource, outputStats] = await Promise.all([
     readFile(outputPath, "utf8"),
+    readFile(maintainedSourcePath, "utf8"),
     stat(outputPath),
   ]);
   if (!output.startsWith("// ==UserScript==\n")) {
@@ -52,26 +64,27 @@ async function verify(): Promise<void> {
   }
   new Script(output, { filename: "subbatch.user.js" });
 
-  if (output.includes(LEGACY_BODY_MARKER)) {
+  const marker = `${LEGACY_BODY_MARKER}\n`;
+  const markerIndex = output.indexOf(marker);
+  if (markerIndex < 0) throw new Error("Maintained full-feature runtime marker not found");
+  const outputBehaviorBody = output.slice(markerIndex + marker.length);
+  const expectedBehaviorBody = stripUserscriptMetadata(maintainedSource);
+  if (outputBehaviorBody !== expectedBehaviorBody) {
     throw new Error(
-      "Pure userscript must not include the legacy compatibility body marker",
+      `Maintained behavior body mismatch: expected ${hash(expectedBehaviorBody)}, received ${hash(outputBehaviorBody)}`,
     );
   }
-  // Heuristic: frozen legacy body is ~400KB+ of Studio/DOM code.
-  if (outputStats.size > 350_000) {
-    throw new Error(
-      `Pure userscript is suspiciously large (${outputStats.size} bytes); possible legacy body inclusion`,
-    );
+  for (const capability of requiredCapabilities) {
+    if (!outputBehaviorBody.includes(capability)) {
+      throw new Error(`Production userscript lost capability marker: ${capability}`);
+    }
   }
-  if (!output.includes("Build mode: pure") && !output.includes("pure runtime")) {
-    throw new Error("Pure userscript missing monorepo pure runtime marker");
-  }
-  if (!output.includes("SubBatchMonorepo") && !output.includes("createUserscriptRuntime")) {
-    throw new Error("Pure userscript missing monorepo runtime composition");
+  if (outputStats.size <= Buffer.byteLength(maintainedSource)) {
+    throw new Error("Production output is unexpectedly smaller than its maintained source");
   }
 
   console.log(
-    `Verified pure ${outputPath}: metadata, single-file monorepo bundle, no legacy body (sha256 ${hash(output)})`,
+    `Verified production ${outputPath}: executable monorepo bootstrap plus exact maintained full-feature runtime (sha256 ${hash(output)})`,
   );
 }
 

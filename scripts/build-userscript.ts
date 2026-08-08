@@ -20,13 +20,15 @@ const legacyPath = resolve(
   projectRoot,
   "legacy/Bili-SubBatch-v6.0.2.user.js",
 );
+const maintainedSourcePath = resolve(projectRoot, "loop-bilibili.js");
 const outputDirectory = resolve(projectRoot, "dist/userscript");
 const buildDirectory = resolve(outputDirectory, ".build");
 const bundlePath = resolve(buildDirectory, "subbatch.bundle.js");
-const pureOutputPath = resolve(outputDirectory, "subbatch.user.js");
+const productionOutputPath = resolve(outputDirectory, "subbatch.user.js");
+const pureOutputPath = resolve(outputDirectory, "subbatch.pure.user.js");
 const compatOutputPath = resolve(outputDirectory, "subbatch.compat.user.js");
 const expectedLegacyHash =
-  "26FAD055B6449205DA0EF067F5F943CF94B84141FAAE4911EA2B50F84A77BF50";
+  "370FE4B3D3A02D8091CFA40C4298BA3CC2A5F08794D0F4E010DCC0DED0806762";
 
 function sha256(source: string): string {
   return createHash("sha256").update(source).digest("hex").toUpperCase();
@@ -106,9 +108,12 @@ async function buildPureUserscript(): Promise<void> {
  * Safety net while module takeover is incomplete.
  */
 async function buildCompatUserscript(): Promise<void> {
-  const legacyBytes = await assertLegacyHash();
+  await assertLegacyHash();
+  const maintainedSourceBytes = await readFile(maintainedSourcePath);
   const bootstrap = await buildBundle();
-  const legacyBody = stripUserscriptMetadata(legacyBytes.toString("utf8"));
+  const maintainedBody = stripUserscriptMetadata(
+    maintainedSourceBytes.toString("utf8"),
+  );
   const output = [
     renderUserscriptMetadata(userscriptMetadata),
     "",
@@ -117,15 +122,18 @@ async function buildCompatUserscript(): Promise<void> {
     bootstrap.trim(),
     "",
     LEGACY_BODY_MARKER,
-    legacyBody,
+    maintainedBody,
   ].join("\n");
 
-  await writeFile(compatOutputPath, output, "utf8");
-  // Keep historical path as an alias to compat until pure fully ships product UI.
-  // Pure production target remains subbatch.user.js (no legacy body).
+  // Until the monorepo composition root owns every product capability, the
+  // official upgrade path must retain the complete maintained behavior body.
+  await Promise.all([
+    writeFile(productionOutputPath, output, "utf8"),
+    writeFile(compatOutputPath, output, "utf8"),
+  ]);
   await rm(buildDirectory, { recursive: true, force: true });
   console.log(
-    `Built compat ${compatOutputPath} (${Buffer.byteLength(output)} bytes, sha256 ${sha256(output)})`,
+    `Built production ${productionOutputPath} and compat alias (${Buffer.byteLength(output)} bytes, sha256 ${sha256(output)})`,
   );
 }
 

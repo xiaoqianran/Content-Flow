@@ -28,8 +28,13 @@ async function readFetchStream(
   onChunk?: (chunk: string) => void,
   signal?: AbortSignal,
 ): Promise<string> {
-  if (!response.body || !onChunk) {
+  if (!onChunk) {
     return response.text();
+  }
+  if (!response.body) {
+    const text = await response.text();
+    if (text) onChunk(text);
+    return text;
   }
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
@@ -46,7 +51,11 @@ async function readFetchStream(
       text += chunk;
       onChunk(chunk);
     }
-    text += decoder.decode();
+    const tail = decoder.decode();
+    if (tail) {
+      text += tail;
+      onChunk(tail);
+    }
     return text;
   } catch (error) {
     try {
@@ -58,16 +67,35 @@ async function readFetchStream(
   }
 }
 
+class FetchNetworkError extends Error {
+  readonly cause: unknown;
+
+  constructor(cause: unknown) {
+    super(cause instanceof Error ? cause.message : String(cause));
+    this.name = "FetchNetworkError";
+    this.cause = cause;
+  }
+}
+
 async function fetchRequest(
+  pageWindow: Window,
   url: string,
   request: NetworkRequest = {},
 ): Promise<NetworkResponse> {
-  const response = await fetch(url, {
-    ...(request.method ? { method: request.method } : {}),
-    ...(request.headers ? { headers: request.headers } : {}),
-    ...(request.body !== undefined ? { body: request.body } : {}),
-    ...(request.signal ? { signal: request.signal } : {}),
-  });
+  let response: Response;
+  try {
+    const fetchFn = pageWindow.fetch || fetch;
+    response = await fetchFn.call(pageWindow, url, {
+      ...(request.method ? { method: request.method } : {}),
+      ...(request.headers ? { headers: request.headers } : {}),
+      ...(request.body !== undefined ? { body: request.body } : {}),
+      ...(request.signal ? { signal: request.signal } : {}),
+      ...(request.credentials ? { credentials: request.credentials } : {}),
+      ...(request.cache ? { cache: request.cache } : {}),
+    });
+  } catch (error) {
+    throw new FetchNetworkError(error);
+  }
   const headers = Object.fromEntries(response.headers.entries());
   const useStream = request.stream === true && typeof request.onChunk === "function";
   const text = useStream
@@ -85,7 +113,12 @@ function privilegedRequest(
   url: string,
   request: NetworkRequest = {},
 ): Promise<NetworkResponse> {
-  if (typeof GM_xmlhttpRequest !== "function") return fetchRequest(url, request);
+  if (typeof GM_xmlhttpRequest !== "function") {
+    return Promise.reject(new Error("GM_xmlhttpRequest is unavailable"));
+  }
+  if (request.signal?.aborted) {
+    return Promise.reject(new DOMException("Aborted", "AbortError"));
+  }
 
   const useStream = request.stream === true && typeof request.onChunk === "function";
 
@@ -93,15 +126,44 @@ function privilegedRequest(
     let lastLength = 0;
     let settled = false;
 
+    const requestHandle: {
+      current?: ReturnType<NonNullable<typeof GM_xmlhttpRequest>>;
+    } = {};
+    const onAbort = (): void => {
+      try {
+        requestHandle.current?.abort?.();
+      } catch {
+        /* ignore */
+      }
+      fail(new DOMException("Aborted", "AbortError"));
+    };
+    const cleanup = (): void => request.signal?.removeEventListener("abort", onAbort);
     const finish = (response: NetworkResponse): void => {
       if (settled) return;
       settled = true;
+      cleanup();
       resolve(response);
     };
     const fail = (error: unknown): void => {
       if (settled) return;
       settled = true;
+      cleanup();
       reject(error);
+    };
+    const emitChunk = (chunk: string): boolean => {
+      if (!chunk || settled) return !settled;
+      try {
+        request.onChunk?.(chunk);
+        return true;
+      } catch (error) {
+        fail(error);
+        try {
+          requestHandle.current?.abort?.();
+        } catch {
+          /* ignore */
+        }
+        return false;
+      }
     };
 
     const details: UserscriptRequestDetails = {
@@ -112,7 +174,7 @@ function privilegedRequest(
       onload: (response) => {
         const text = String(response.responseText || "");
         if (useStream && text.length > lastLength) {
-          request.onChunk?.(text.slice(lastLength));
+          if (!emitChunk(text.slice(lastLength))) return;
           lastLength = text.length;
         }
         finish({
@@ -130,26 +192,21 @@ function privilegedRequest(
       details.onprogress = (response) => {
         const full = String(response.responseText || "");
         if (full.length > lastLength) {
-          request.onChunk?.(full.slice(lastLength));
+          if (!emitChunk(full.slice(lastLength))) return;
           lastLength = full.length;
         }
       };
     }
-    const handle = GM_xmlhttpRequest(details);
-
-    request.signal?.addEventListener(
-      "abort",
-      () => {
-        try {
-          handle.abort?.();
-        } catch {
-          /* ignore */
-        }
-        fail(new DOMException("Aborted", "AbortError"));
-      },
-      { once: true },
-    );
+    request.signal?.addEventListener("abort", onAbort, { once: true });
+    requestHandle.current = GM_xmlhttpRequest(details);
+    if (settled) cleanup();
   });
+}
+
+function mayRetryHttpFailure(request: NetworkRequest): boolean {
+  if (request.fallback !== "network-or-http") return false;
+  const method = String(request.method || "GET").toUpperCase();
+  return method === "GET" || method === "HEAD" || method === "OPTIONS";
 }
 
 function registerShortcuts(
@@ -181,6 +238,8 @@ function onNavigate(listener: () => void): () => void {
 }
 
 export function createUserscriptHost(): UserscriptHost {
+  const pageWindow =
+    typeof unsafeWindow !== "undefined" && unsafeWindow ? unsafeWindow : window;
   return {
     storageGet: (key, fallback) =>
       typeof GM_getValue === "function" ? GM_getValue(key, fallback) : fallback,
@@ -192,10 +251,20 @@ export function createUserscriptHost(): UserscriptHost {
     },
     request: async (url, request) => {
       try {
-        return await fetchRequest(url, request);
+        const response = await fetchRequest(pageWindow, url, request);
+        if (!response.ok && mayRetryHttpFailure(request ?? {})) {
+          return privilegedRequest(url, request);
+        }
+        return response;
       } catch (error) {
         if (request?.signal?.aborted) throw error;
-        return privilegedRequest(url, request);
+        if (
+          error instanceof FetchNetworkError &&
+          request?.fallback !== "never"
+        ) {
+          return privilegedRequest(url, request);
+        }
+        throw error;
       }
     },
     writeClipboard: async (text) => {
@@ -211,8 +280,7 @@ export function createUserscriptHost(): UserscriptHost {
       style.textContent = css;
       document.head.appendChild(style);
     },
-    pageWindow:
-      typeof unsafeWindow !== "undefined" && unsafeWindow ? unsafeWindow : window,
+    pageWindow,
     pageHref: () => location.href,
     registerShortcuts,
     onNavigate,

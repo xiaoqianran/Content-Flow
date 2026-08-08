@@ -131,8 +131,15 @@ describe("Bilibili route differential (legacy vs new)", () => {
       null,
     ];
     for (const sample of samples) {
-      expect(extractBvid(sample as string)).toBe(legacyExtractBvid(sample));
+      const next = extractBvid(sample as string);
+      const legacy = legacyExtractBvid(sample);
+      if (String(sample).includes("bvid=")) {
+        expect(next).not.toBe("BVid");
+      } else {
+        expect(next).toBe(legacy);
+      }
     }
+    expect(extractBvid("bvid=BV1Q541167Qg")).toBe("BV1Q541167Qg");
     expect(routeVideoKey("bv1Test", 0)).toBe(legacyRouteVideoKey("bv1Test", 0));
     expect(routeVideoKey("BV1x", 5)).toBe(legacyRouteVideoKey("BV1x", 5));
   });
@@ -155,6 +162,9 @@ describe("Bilibili route differential (legacy vs new)", () => {
     const effectiveHints = { ...extractUrlHints(href), ...pageHints };
     const next = detectContext(href, pageHints);
     const legacy = legacyDetect(href, effectiveHints);
+    // v6 accidentally parsed the query-parameter name `bvid` as `BVid`.
+    // The maintained implementation intentionally fixes that data-corrupting bug.
+    if (legacy.bvid === "BVid") legacy.bvid = next.bvid;
     expect(next).toEqual(legacy);
   });
 });

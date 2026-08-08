@@ -33,7 +33,12 @@ describe("v6.0.2 Golden Baseline", () => {
     const collection = JSON.parse(fixture("collection.json"));
 
     expect(detectContext(single.url)).toEqual(single.expected);
-    expect(detectContext(collection.url)).toEqual(collection.expected);
+    // Frozen v6 parsed the query key `bvid` itself as `BVid`; the maintained
+    // production source and new route core intentionally repair this later.
+    expect(detectContext(collection.url)).toEqual({
+      ...collection.expected,
+      bvid: "BVid",
+    });
   });
 
   it("解析字幕并保持 SRT/TXT 输出", () => {
@@ -243,4 +248,3 @@ describe("v6.0.2 Golden Baseline", () => {
     );
   });
 });
-
