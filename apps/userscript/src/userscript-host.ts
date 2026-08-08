@@ -221,15 +221,29 @@ function registerShortcuts(
   });
 }
 
+function resolvePageWindow(): Window {
+  return typeof unsafeWindow !== "undefined" && unsafeWindow
+    ? unsafeWindow
+    : window;
+}
+
+function pageHrefOf(pageWindow: Window): string {
+  try {
+    return String(pageWindow.location?.href || location.href);
+  } catch {
+    return location.href;
+  }
+}
+
 function onNavigate(listener: () => void): () => void {
-  const pageWindow =
-    typeof unsafeWindow !== "undefined" && unsafeWindow ? unsafeWindow : window;
+  const pageWindow = resolvePageWindow();
   const handle = installSpaNavigateAdapter(
     {
       historyWindow: pageWindow,
       eventWindow: pageWindow,
       documentRef: document,
-      getHref: () => location.href,
+      // Prefer page/unsafeWindow location so SPA history and href stay aligned.
+      getHref: () => pageHrefOf(pageWindow),
       pollIntervalMs: 2000,
     },
     listener,
@@ -238,8 +252,7 @@ function onNavigate(listener: () => void): () => void {
 }
 
 export function createUserscriptHost(): UserscriptHost {
-  const pageWindow =
-    typeof unsafeWindow !== "undefined" && unsafeWindow ? unsafeWindow : window;
+  const pageWindow = resolvePageWindow();
   return {
     storageGet: (key, fallback) =>
       typeof GM_getValue === "function" ? GM_getValue(key, fallback) : fallback,
@@ -281,7 +294,7 @@ export function createUserscriptHost(): UserscriptHost {
       document.head.appendChild(style);
     },
     pageWindow,
-    pageHref: () => location.href,
+    pageHref: () => pageHrefOf(pageWindow),
     registerShortcuts,
     onNavigate,
     hubAvailable: async () => false,

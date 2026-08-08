@@ -71,6 +71,12 @@
 (function () {
   "use strict";
 
+  /**
+   * P4.5 monorepo bridge: production bootstrap exposes `var SubBatch`.
+   * Pure cores prefer SubBatch.SubBatchMonorepo.* when present; local bodies
+   * remain as golden-harness fallbacks (typeof SubBatch is ReferenceError-safe).
+   */
+
   const SCRIPT_VERSION =
     (typeof GM_info !== "undefined" && GM_info?.script?.version) || "6.0.2";
   const PANEL_ID = "bili-subbatch-panel";
@@ -972,6 +978,15 @@
 
   // ─── util ───────────────────────────────────────────────────────────────
   function extractBvid(text) {
+    try {
+      const pure =
+        typeof SubBatch !== "undefined"
+          ? SubBatch?.SubBatchMonorepo?.bilibili?.extractBvid
+          : null;
+      if (typeof pure === "function") return pure(text);
+    } catch (_) {
+      /* monorepo unavailable — local fallback */
+    }
     if (!text) return "";
     text = String(text).trim();
     if (!text) return "";
@@ -1186,6 +1201,23 @@
    * - 返回字段可被「手动模式」复用（mid/sid/bvid…）
    */
   function detectContext(href) {
+    try {
+      const pure =
+        typeof SubBatch !== "undefined"
+          ? SubBatch?.SubBatchMonorepo?.bilibili?.detectContext
+          : null;
+      if (typeof pure === "function") {
+        try {
+          const url = new URL(href || location.href);
+          // DOM half stays local (extractPageHints); pure core owns URL routing.
+          return pure(href || location.href, extractPageHints(url));
+        } catch (_) {
+          return pure(String(href || ""), {});
+        }
+      }
+    } catch (_) {
+      /* monorepo unavailable — local fallback */
+    }
     let u;
     try {
       u = new URL(href || location.href);
@@ -1655,6 +1687,15 @@
   }
 
   function routeVideoKey(bvid, page) {
+    try {
+      const pure =
+        typeof SubBatch !== "undefined"
+          ? SubBatch?.SubBatchMonorepo?.bilibili?.routeVideoKey
+          : null;
+      if (typeof pure === "function") return pure(bvid, page);
+    } catch (_) {
+      /* monorepo unavailable — local fallback */
+    }
     return `${String(bvid || "").toUpperCase()}:P${Math.max(1, Number(page) || 1)}`;
   }
 
@@ -8779,6 +8820,14 @@
   }
 
   function renderPromptTemplate(template, vars) {
+    try {
+      const api =
+        typeof SubBatch !== "undefined" ? SubBatch?.SubBatchMonorepo : null;
+      const pure = api?.core?.renderPromptTemplate || api?.renderPromptTemplate;
+      if (typeof pure === "function") return pure(template, vars);
+    } catch (_) {
+      /* monorepo unavailable — local fallback */
+    }
     const values = {
       title: String(vars?.title || ""),
       bvid: String(vars?.bvid || ""),
@@ -9294,11 +9343,16 @@
   async function renderPreprocessCanvas() {
     const root = ensurePanel();
     if (state.ui) state.ui.aiStage = "preprocess";
-    applyAiWorkbenchStageUi();
-    const kind = state.aiInputView === "processed" ? "processed" : "raw";
-    const text = currentInputPreviewText(kind);
     const processed = currentInputPreviewText("processed");
     const raw = currentInputPreviewText("raw");
+    // SPA 换视频 / 自动抓取竞态：上一视频停在「规范化稿」时，新视频尚无 processed，
+    // 必须回退到原始字幕，否则状态写“已就绪”而正文仍是“还没有 AI 处理字幕”。
+    if (state.aiInputView === "processed" && !processed && raw) {
+      state.aiInputView = "raw";
+    }
+    applyAiWorkbenchStageUi();
+    const kind = state.aiInputView === "processed" ? "processed" : "raw";
+    const text = kind === "processed" ? processed : raw;
     const status = root.querySelector('[data-role="ai-preprocess-status"]');
     if (status) {
       if (!raw) status.textContent = "当前视频暂无字幕";
@@ -12575,6 +12629,8 @@
     }
     state.aiSessionInput = null;
     state.preprocessRun = null;
+    // 强制回到原始字幕视图，避免新视频仍停留在「规范化稿」空态。
+    state.aiInputView = "raw";
     state.aiViewingPreprocess = false;
     state.aiRuns = new Map();
     state.aiRunOrder = [];

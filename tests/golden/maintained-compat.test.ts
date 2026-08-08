@@ -70,6 +70,42 @@ describe("Maintained full-feature compatibility source", () => {
     expect(navigateSource).toContain("transcriptSearch.value = \"\"");
   });
 
+  it("resets preprocess view to raw when SPA navigation aborts AI state", () => {
+    const abortSource = extractFunctionSource(
+      maintainedSource,
+      "abortAiForAutoNavigation",
+    );
+    expect(abortSource).toContain('state.aiInputView = "raw"');
+    expect(abortSource).toContain("state.preprocessRun = null");
+  });
+
+  it("falls back preprocess canvas to raw when processed text is empty", () => {
+    const canvasSource = extractFunctionSource(
+      maintainedSource,
+      "renderPreprocessCanvas",
+    );
+    expect(canvasSource).toContain(
+      'if (state.aiInputView === "processed" && !processed && raw)',
+    );
+    expect(canvasSource).toContain('state.aiInputView = "raw"');
+  });
+
+  it("bridges pure monorepo cores when SubBatch bootstrap is present", () => {
+    expect(maintainedSource).toContain("SubBatchMonorepo");
+    expect(extractFunctionSource(maintainedSource, "extractBvid")).toContain(
+      "SubBatch?.SubBatchMonorepo?.bilibili?.extractBvid",
+    );
+    expect(extractFunctionSource(maintainedSource, "detectContext")).toContain(
+      "SubBatch?.SubBatchMonorepo?.bilibili?.detectContext",
+    );
+    expect(extractFunctionSource(maintainedSource, "routeVideoKey")).toContain(
+      "SubBatch?.SubBatchMonorepo?.bilibili?.routeVideoKey",
+    );
+    expect(
+      extractFunctionSource(maintainedSource, "renderPromptTemplate"),
+    ).toContain("SubBatch?.SubBatchMonorepo");
+  });
+
   it("refreshes the preprocess canvas after automatic subtitle capture", () => {
     const captureStart = maintainedSource.indexOf(
       "async function autoCaptureCurrentVideo(",
