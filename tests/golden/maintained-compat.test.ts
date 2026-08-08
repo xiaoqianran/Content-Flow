@@ -106,6 +106,20 @@ describe("Maintained full-feature compatibility source", () => {
     ).toContain("SubBatch?.SubBatchMonorepo");
   });
 
+  it("supports resizable and collapsible knowledge layout columns", () => {
+    expect(maintainedSource).toContain("function bindKnowledgeLayoutInteractions(");
+    expect(maintainedSource).toContain("function applyKnowledgeLayoutVars(");
+    expect(maintainedSource).toContain("function knowledgeContextHtml(");
+    expect(maintainedSource).toContain('data-role="knowledge-rail-resize"');
+    expect(maintainedSource).toContain('data-role="knowledge-list-split"');
+    expect(maintainedSource).toContain('data-role="knowledge-tree-split"');
+    expect(maintainedSource).toContain("data-knowledge-list-toggle");
+    expect(maintainedSource).toContain("data-knowledge-workspace-tree-toggle");
+    expect(maintainedSource).toContain("knowledgeRailW");
+    expect(maintainedSource).toContain("--bsb-knowledge-rail-w");
+    expect(maintainedSource).toContain("bsb-knowledge-rail-split${treeOpen ? \" with-tree\" : \"\"}");
+  });
+
   it("refreshes the preprocess canvas after automatic subtitle capture", () => {
     const captureStart = maintainedSource.indexOf(
       "async function autoCaptureCurrentVideo(",

@@ -2512,7 +2512,39 @@
       settingsTab: "prompt", // prompt | llm | shortcuts
       promptStage: "preprocess", // preprocess | postprocess | knowledge
       noteFont: 17,
+      // Knowledge layout (px / collapse flags) — freely resizable columns.
+      knowledgeRailW: 400,
+      knowledgeListW: 230,
+      knowledgeTreeW: 210,
+      knowledgeListCollapsed: false,
+      knowledgeTreeCollapsed: false,
+      knowledgeContextOpen: true,
     };
+  }
+
+  function clampKnowledgeRailW(value, panelWidth = state.ui?.w || 520) {
+    const max = Math.max(300, Math.floor(Number(panelWidth) || 520) - 40);
+    return Math.min(max, Math.max(280, Number(value) || 400));
+  }
+
+  function clampKnowledgeListW(value) {
+    return Math.min(420, Math.max(150, Number(value) || 230));
+  }
+
+  function clampKnowledgeTreeW(value) {
+    return Math.min(420, Math.max(140, Number(value) || 210));
+  }
+
+  function applyKnowledgeLayoutVars(root = document.getElementById(PANEL_ID)) {
+    if (!root || !state.ui) return;
+    const railW = clampKnowledgeRailW(state.ui.knowledgeRailW, state.ui.w);
+    const listW = state.ui.knowledgeListCollapsed ? 0 : clampKnowledgeListW(state.ui.knowledgeListW);
+    const treeW = state.ui.knowledgeTreeCollapsed ? 0 : clampKnowledgeTreeW(state.ui.knowledgeTreeW);
+    root.style.setProperty("--bsb-knowledge-rail-w", `${railW}px`);
+    root.style.setProperty("--bsb-knowledge-list-w", `${listW}px`);
+    root.style.setProperty("--bsb-knowledge-tree-w", `${treeW}px`);
+    root.classList.toggle("knowledge-list-collapsed", !!state.ui.knowledgeListCollapsed);
+    root.classList.toggle("knowledge-tree-collapsed", !!state.ui.knowledgeTreeCollapsed);
   }
 
   function loadUiGeom() {
@@ -2545,6 +2577,12 @@
         settingsTab: ["prompt", "llm", "shortcuts"].includes(o.settingsTab) ? o.settingsTab : "prompt",
         promptStage: ["preprocess", "postprocess", "knowledge"].includes(o.promptStage) ? o.promptStage : "preprocess",
         noteFont: Math.max(NOTE_FONT_MIN, Math.min(NOTE_FONT_MAX, Number(o.noteFont) || 17)),
+        knowledgeRailW: clampKnowledgeRailW(o.knowledgeRailW ?? d.knowledgeRailW, w),
+        knowledgeListW: clampKnowledgeListW(o.knowledgeListW ?? d.knowledgeListW),
+        knowledgeTreeW: clampKnowledgeTreeW(o.knowledgeTreeW ?? d.knowledgeTreeW),
+        knowledgeListCollapsed: o.knowledgeListCollapsed === true,
+        knowledgeTreeCollapsed: o.knowledgeTreeCollapsed === true,
+        knowledgeContextOpen: o.knowledgeContextOpen !== false,
       };
     } catch (_) {
       return defaultUiGeom();
@@ -2569,6 +2607,12 @@
           settingsTab: state.ui.settingsTab || "prompt",
           promptStage: state.ui.promptStage || "preprocess",
           noteFont: state.ui.noteFont || 17,
+          knowledgeRailW: clampKnowledgeRailW(state.ui.knowledgeRailW, state.ui.w),
+          knowledgeListW: clampKnowledgeListW(state.ui.knowledgeListW),
+          knowledgeTreeW: clampKnowledgeTreeW(state.ui.knowledgeTreeW),
+          knowledgeListCollapsed: !!state.ui.knowledgeListCollapsed,
+          knowledgeTreeCollapsed: !!state.ui.knowledgeTreeCollapsed,
+          knowledgeContextOpen: state.ui.knowledgeContextOpen !== false,
         }),
       );
     } catch (_) {
@@ -4253,15 +4297,22 @@
       #${PANEL_ID} .bsb-preprocess-block.has-knowledge::after { content:""; position:absolute; top:11px; right:10px; width:6px; height:6px; border-radius:50%; background:var(--ctp-mauve); box-shadow:0 0 10px color-mix(in srgb,var(--ctp-mauve) 55%,transparent); }
 
       #${PANEL_ID} .bsb-knowledge-rail {
-        position:absolute; z-index:43; top:0; right:0; bottom:0; width:min(390px,44%); transform:translateX(102%);
+        position:absolute; z-index:43; top:0; right:0; bottom:0; width:var(--bsb-knowledge-rail-w,400px); max-width:calc(100% - 36px); transform:translateX(102%);
         display:flex; flex-direction:column; overflow:hidden; border-left:1px solid color-mix(in srgb,var(--ctp-mauve) 22%,var(--ctp-surface0));
         background:color-mix(in srgb,var(--ctp-base) 97%,transparent); box-shadow:-18px 0 42px rgba(0,0,0,.30); transition:transform .19s ease;
       }
       #${PANEL_ID} .bsb-knowledge-rail.open { transform:translateX(0); }
+      #${PANEL_ID} .bsb-knowledge-rail.resizing { transition:none; user-select:none; }
+      #${PANEL_ID} .bsb-knowledge-rail-resize {
+        position:absolute; z-index:5; left:0; top:0; bottom:0; width:8px; cursor:col-resize;
+        background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--ctp-mauve) 18%,transparent));
+      }
+      #${PANEL_ID} .bsb-knowledge-rail-resize:hover,
+      #${PANEL_ID} .bsb-knowledge-rail.resizing .bsb-knowledge-rail-resize { background:color-mix(in srgb,var(--ctp-mauve) 36%,transparent); }
       #${PANEL_ID} [data-view-panel="ai"].knowledge-open .bsb-ai-commandbar,
       #${PANEL_ID} [data-view-panel="ai"].knowledge-open .bsb-preprocess-nav,
       #${PANEL_ID} [data-view-panel="ai"].knowledge-open .bsb-output-nav,
-      #${PANEL_ID} [data-view-panel="ai"].knowledge-open .bsb-ai-canvas-wrap { margin-right:min(390px,44%); }
+      #${PANEL_ID} [data-view-panel="ai"].knowledge-open .bsb-ai-canvas-wrap { margin-right:var(--bsb-knowledge-rail-w,400px); }
       #${PANEL_ID} .bsb-knowledge-rail-head { flex:0 0 auto; display:flex; align-items:flex-start; gap:10px; padding:13px 12px 11px 14px; border-bottom:1px solid var(--ctp-surface0); background:linear-gradient(180deg,color-mix(in srgb,var(--ctp-mauve) 7%,transparent),transparent); }
       #${PANEL_ID} .bsb-knowledge-anchor-title { flex:1 1 auto; min-width:0; }
       #${PANEL_ID} .bsb-knowledge-kicker { display:block; color:var(--ctp-overlay1); font-size:8px; font-weight:900; letter-spacing:.12em; text-transform:uppercase; }
@@ -4270,6 +4321,43 @@
       #${PANEL_ID} .bsb-knowledge-rail-actions { display:flex; gap:3px; }
       #${PANEL_ID} .bsb-knowledge-rail-actions .active { color:var(--ctp-mauve); background:color-mix(in srgb,var(--ctp-mauve) 12%,var(--ctp-surface0)); }
       #${PANEL_ID} .bsb-knowledge-rail-body { flex:1 1 auto; min-height:0; display:flex; flex-direction:column; }
+      #${PANEL_ID} .bsb-knowledge-context {
+        flex:0 1 auto; max-height:34%; min-height:0; overflow:auto; margin:0; border-bottom:1px solid var(--ctp-surface0);
+        background:color-mix(in srgb,var(--ctp-mantle) 72%,transparent);
+      }
+      #${PANEL_ID} .bsb-knowledge-context > summary {
+        cursor:pointer; list-style:none; display:flex; align-items:center; justify-content:space-between; gap:8px;
+        padding:7px 12px; color:var(--ctp-overlay1); font-size:9.5px; font-weight:780; letter-spacing:.04em; user-select:none;
+      }
+      #${PANEL_ID} .bsb-knowledge-context > summary::-webkit-details-marker { display:none; }
+      #${PANEL_ID} .bsb-knowledge-context > summary::after { content:"▾"; color:var(--ctp-overlay0); font-size:10px; }
+      #${PANEL_ID} .bsb-knowledge-context:not([open]) > summary::after { content:"▸"; }
+      #${PANEL_ID} .bsb-knowledge-context-inner { padding:0 12px 10px; display:flex; flex-direction:column; gap:8px; }
+      #${PANEL_ID} .bsb-knowledge-context-inner strong { display:block; margin-bottom:3px; color:var(--ctp-mauve); font-size:9px; letter-spacing:.08em; text-transform:uppercase; }
+      #${PANEL_ID} .bsb-knowledge-context-inner pre {
+        margin:0; white-space:pre-wrap; overflow-wrap:anywhere; color:var(--ctp-subtext1);
+        font:500 11px/1.55 ui-sans-serif,system-ui,sans-serif; max-height:120px; overflow:auto;
+      }
+      #${PANEL_ID} .bsb-knowledge-rail-split {
+        flex:1 1 auto; min-height:0; display:grid; grid-template-columns:minmax(0,1fr); overflow:hidden;
+      }
+      #${PANEL_ID} .bsb-knowledge-rail-split.with-tree {
+        grid-template-columns:minmax(120px,var(--bsb-knowledge-tree-w,210px)) 5px minmax(0,1fr);
+      }
+      #${PANEL_ID} .bsb-knowledge-split-main { min-width:0; min-height:0; display:flex; flex-direction:column; overflow:hidden; }
+      #${PANEL_ID} .bsb-knowledge-splitter {
+        flex:0 0 auto; width:5px; cursor:col-resize; background:color-mix(in srgb,var(--ctp-surface0) 80%,transparent);
+        border:0; padding:0; position:relative;
+      }
+      #${PANEL_ID} .bsb-knowledge-splitter::after {
+        content:""; position:absolute; inset:12% 1px; border-radius:99px;
+        background:color-mix(in srgb,var(--ctp-overlay0) 45%,transparent);
+      }
+      #${PANEL_ID} .bsb-knowledge-splitter:hover::after,
+      #${PANEL_ID}.knowledge-resizing .bsb-knowledge-splitter::after { background:var(--ctp-mauve); }
+      #${PANEL_ID} .bsb-knowledge-pane-head {
+        flex:0 0 auto; display:flex; align-items:center; justify-content:space-between; gap:6px; padding:6px 8px 4px;
+      }
       #${PANEL_ID} .bsb-knowledge-crumbs { flex:0 0 auto; min-height:28px; display:flex; align-items:center; gap:4px; overflow-x:auto; padding:5px 12px; border-bottom:1px solid color-mix(in srgb,var(--ctp-surface0) 75%,transparent); scrollbar-width:none; }
       #${PANEL_ID} .bsb-knowledge-crumbs button { flex:0 0 auto; max-width:145px; border:0; background:transparent; color:var(--ctp-overlay1); cursor:pointer; font-size:9px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding:2px 3px; }
       #${PANEL_ID} .bsb-knowledge-crumbs button:last-of-type { color:var(--ctp-subtext1); }
@@ -4314,14 +4402,21 @@
       #${PANEL_ID} .bsb-knowledge-rail-empty strong { color:var(--ctp-text); font-size:15px; }
       #${PANEL_ID} .bsb-knowledge-rail-empty p { max-width:260px; font-size:10.5px; line-height:1.55; }
 
-      #${PANEL_ID} [data-view-panel="knowledge"] { min-height:0; }
-      #${PANEL_ID} .bsb-knowledge-workspace { height:100%; min-height:0; display:flex; flex-direction:column; }
+      #${PANEL_ID} [data-view-panel="knowledge"] { min-height:0; height:100%; display:flex; flex-direction:column; }
+      #${PANEL_ID} .bsb-knowledge-workspace { flex:1 1 auto; height:100%; min-height:0; display:flex; flex-direction:column; }
       #${PANEL_ID} .bsb-knowledge-topbar { flex:0 0 auto; display:flex; align-items:center; gap:9px; padding:8px 10px; border-bottom:1px solid var(--ctp-surface0); }
       #${PANEL_ID} .bsb-knowledge-search { flex:1 1 auto; display:flex; align-items:center; gap:7px; border:1px solid var(--ctp-surface1); border-radius:10px; padding:0 10px; background:var(--ctp-mantle); }
       #${PANEL_ID} .bsb-knowledge-search input { width:100%; height:34px; border:0; outline:none; background:transparent; color:var(--ctp-text); }
-      #${PANEL_ID} .bsb-knowledge-count { color:var(--ctp-overlay1); font-size:9.5px; }
-      #${PANEL_ID} .bsb-knowledge-master-detail { flex:1 1 auto; min-height:0; display:grid; grid-template-columns:minmax(190px,29%) minmax(0,1fr); }
-      #${PANEL_ID} .bsb-knowledge-library { min-height:0; overflow:auto; padding:7px; border-right:1px solid var(--ctp-surface0); }
+      #${PANEL_ID} .bsb-knowledge-count { color:var(--ctp-overlay1); font-size:9.5px; white-space:nowrap; }
+      #${PANEL_ID} .bsb-knowledge-master-detail {
+        flex:1 1 auto; min-height:0; display:grid;
+        grid-template-columns:minmax(0,var(--bsb-knowledge-list-w,230px)) 5px minmax(0,1fr);
+      }
+      #${PANEL_ID}.knowledge-list-collapsed .bsb-knowledge-master-detail {
+        grid-template-columns:0 5px minmax(0,1fr);
+      }
+      #${PANEL_ID}.knowledge-list-collapsed .bsb-knowledge-library { overflow:hidden; opacity:0; pointer-events:none; }
+      #${PANEL_ID} .bsb-knowledge-library { min-height:0; overflow:auto; padding:7px; border-right:0; }
       #${PANEL_ID} .bsb-knowledge-list-item { width:100%; display:grid; grid-template-columns:8px minmax(0,1fr) auto; gap:7px; align-items:start; padding:9px 8px; border:1px solid transparent; border-radius:10px; background:transparent; color:var(--ctp-text); cursor:pointer; text-align:left; }
       #${PANEL_ID} .bsb-knowledge-list-item:hover { background:var(--ctp-surface0); }
       #${PANEL_ID} .bsb-knowledge-list-item.active { border-color:color-mix(in srgb,var(--ctp-mauve) 32%,transparent); background:color-mix(in srgb,var(--ctp-mauve) 9%,var(--ctp-surface0)); }
@@ -4336,27 +4431,40 @@
       #${PANEL_ID} .bsb-knowledge-workspace-head p { margin:4px 0 0; color:var(--ctp-overlay1); font-size:9.5px; }
       #${PANEL_ID} .bsb-knowledge-workspace-head > div:last-child { display:flex; gap:5px; }
       #${PANEL_ID} .bsb-knowledge-workspace-head [data-knowledge-star-anchor].active { color:var(--ctp-yellow); border-color:color-mix(in srgb,var(--ctp-yellow) 30%,var(--ctp-surface1)); background:color-mix(in srgb,var(--ctp-yellow) 8%,transparent); }
-      #${PANEL_ID} .bsb-knowledge-workspace-body { flex:1 1 auto; min-height:0; display:grid; grid-template-columns:minmax(170px,30%) minmax(0,1fr); }
-      #${PANEL_ID} .bsb-knowledge-tree-pane { min-height:0; overflow:auto; padding:12px 8px; border-right:1px solid var(--ctp-surface0); }
-      #${PANEL_ID} .bsb-knowledge-tree-pane > .bsb-knowledge-kicker { padding:0 7px 8px; }
+      #${PANEL_ID} .bsb-knowledge-workspace-body {
+        flex:1 1 auto; min-height:0; display:grid;
+        grid-template-columns:minmax(0,var(--bsb-knowledge-tree-w,210px)) 5px minmax(0,1fr);
+      }
+      #${PANEL_ID}.knowledge-tree-collapsed .bsb-knowledge-workspace-body {
+        grid-template-columns:0 5px minmax(0,1fr);
+      }
+      #${PANEL_ID}.knowledge-tree-collapsed .bsb-knowledge-tree-pane { overflow:hidden; opacity:0; pointer-events:none; }
+      #${PANEL_ID} .bsb-knowledge-tree-pane { min-height:0; overflow:auto; padding:8px 6px 12px; border-right:0; display:flex; flex-direction:column; }
+      #${PANEL_ID} .bsb-knowledge-tree-pane .bsb-knowledge-tree { flex:1 1 auto; min-height:0; overflow:auto; }
       #${PANEL_ID} .bsb-knowledge-detail-pane { min-height:0; display:flex; flex-direction:column; overflow:hidden; }
-      #${PANEL_ID} .bsb-knowledge-detail-pane .bsb-knowledge-panel-main { padding:18px 20px; }
+      #${PANEL_ID} .bsb-knowledge-detail-pane .bsb-knowledge-panel-main { padding:14px 16px 18px; }
       #${PANEL_ID} .bsb-knowledge-detail-pane .bsb-knowledge-crumbs { padding-left:16px; }
       #${PANEL_ID} .bsb-knowledge-detail-pane .bsb-knowledge-composer { padding:10px 16px 13px; }
       #${PANEL_ID}[data-panel-size="small"] [data-view-panel="ai"].knowledge-open .bsb-ai-commandbar,
       #${PANEL_ID}[data-panel-size="small"] [data-view-panel="ai"].knowledge-open .bsb-preprocess-nav,
       #${PANEL_ID}[data-panel-size="small"] [data-view-panel="ai"].knowledge-open .bsb-output-nav,
       #${PANEL_ID}[data-panel-size="small"] [data-view-panel="ai"].knowledge-open .bsb-ai-canvas-wrap { margin-right:0; visibility:hidden; }
-      #${PANEL_ID}[data-panel-size="small"] .bsb-knowledge-rail { width:100%; }
+      #${PANEL_ID}[data-panel-size="small"] .bsb-knowledge-rail { width:100%; max-width:100%; --bsb-knowledge-rail-w:100%; }
       #${PANEL_ID} .bsb-knowledge-mobile-back { display:none; }
       #${PANEL_ID}[data-panel-size="small"] .bsb-knowledge-master-detail { position:relative; grid-template-columns:1fr; }
+      #${PANEL_ID}[data-panel-size="small"] .bsb-knowledge-master-detail > .bsb-knowledge-splitter { display:none; }
       #${PANEL_ID}[data-panel-size="small"] .bsb-knowledge-library { border-right:0; }
       #${PANEL_ID}[data-panel-size="small"] .bsb-knowledge-detail { display:none; }
       #${PANEL_ID}[data-panel-size="small"] .bsb-knowledge-workspace.detail-open .bsb-knowledge-library { display:none; }
       #${PANEL_ID}[data-panel-size="small"] .bsb-knowledge-workspace.detail-open .bsb-knowledge-detail { display:flex; position:absolute; inset:0; z-index:2; background:var(--ctp-base); }
       #${PANEL_ID}[data-panel-size="small"] .bsb-knowledge-mobile-back { display:inline-flex; }
-      #${PANEL_ID}[data-panel-size="small"] .bsb-knowledge-workspace-body { grid-template-columns:1fr; }
-      #${PANEL_ID}[data-panel-size="small"] .bsb-knowledge-tree-pane { max-height:34%; border-right:0; border-bottom:1px solid var(--ctp-surface0); }
+      #${PANEL_ID}[data-panel-size="small"] .bsb-knowledge-workspace-body { grid-template-columns:1fr; grid-template-rows:minmax(90px,32%) 1fr; }
+      #${PANEL_ID}[data-panel-size="small"] .bsb-knowledge-workspace-body > .bsb-knowledge-splitter { display:none; }
+      #${PANEL_ID}[data-panel-size="small"] .bsb-knowledge-tree-pane { max-height:none; border-right:0; border-bottom:1px solid var(--ctp-surface0); opacity:1; pointer-events:auto; }
+      #${PANEL_ID}[data-panel-size="small"].knowledge-tree-collapsed .bsb-knowledge-workspace-body { grid-template-rows:0 1fr; }
+      #${PANEL_ID}[data-panel-size="small"] .bsb-knowledge-rail-split.with-tree { grid-template-columns:1fr; grid-template-rows:minmax(90px,36%) 1fr; }
+      #${PANEL_ID}[data-panel-size="small"] .bsb-knowledge-rail-split.with-tree > .bsb-knowledge-splitter { display:none; }
+      #${PANEL_ID}[data-panel-size="small"] .bsb-knowledge-rail-split.with-tree .bsb-knowledge-tree-pane { border-bottom:1px solid var(--ctp-surface0); }
       #${PANEL_ID} [hidden] { display:none !important; }
       #${PANEL_ID} .bsb-output-nav { flex:0 0 auto; border-bottom:1px solid var(--ctp-surface0); background:color-mix(in srgb,var(--ctp-mantle) 78%,transparent); }
       #${PANEL_ID} .bsb-output-tabs { display:flex; gap:3px; overflow-x:auto; padding:6px 8px 3px; scrollbar-width:thin; }
@@ -5201,6 +5309,7 @@
     );
     const fab = root.querySelector(".bsb-fab");
     if (fab) fab.setAttribute("aria-expanded", state.open || !!ui.dock ? "true" : "false");
+    applyKnowledgeLayoutVars(root);
   }
 
   function bindPanelChrome(root) {
@@ -5714,11 +5823,14 @@
           <section class="bsb-view" data-view-panel="knowledge">
             <div class="bsb-knowledge-workspace">
               <div class="bsb-knowledge-topbar">
+                <button type="button" class="bsb-icon-btn" data-knowledge-list-toggle title="折叠 / 展开锚点列表" aria-label="折叠锚点列表">☰</button>
                 <label class="bsb-knowledge-search"><span>⌕</span><input type="search" data-role="knowledge-search" placeholder="搜索知识锚点 / 视频 / 上下文…" autocomplete="off"></label>
                 <span class="bsb-knowledge-count"><strong data-role="knowledge-count">0</strong> anchors</span>
+                <button type="button" class="bsb-icon-btn" data-knowledge-workspace-tree-toggle title="折叠 / 展开追问树" aria-label="折叠追问树">☷</button>
               </div>
-              <div class="bsb-knowledge-master-detail">
+              <div class="bsb-knowledge-master-detail" data-role="knowledge-master-detail">
                 <aside class="bsb-knowledge-library" data-role="knowledge-list"></aside>
+                <button type="button" class="bsb-knowledge-splitter" data-role="knowledge-list-split" title="拖拽调整锚点列表宽度" aria-label="调整列表宽度"></button>
                 <main class="bsb-knowledge-detail" data-role="knowledge-detail"><div class="bsb-empty"><div class="bsb-empty-ico">◇</div><strong>Knowledge Workspace</strong><span>从 AI 处理字幕中选中一个知识概念开始。</span></div></main>
               </div>
             </div>
@@ -5800,6 +5912,8 @@
     `;
     document.documentElement.appendChild(root);
     bindPanelChrome(root);
+    bindKnowledgeLayoutInteractions(root);
+    applyKnowledgeLayoutVars(root);
 
     root.querySelectorAll("[data-view]").forEach((btn) => {
       btn.addEventListener("click", () => setWorkspace(btn.getAttribute("data-view")));
@@ -6113,13 +6227,41 @@
         return;
       }
       if (e.target.closest?.("[data-knowledge-back-list]")) { e.preventDefault(); state.knowledgeActiveAnchorId = ""; state.knowledgeActiveNodeId = ""; renderKnowledgeWorkspace().catch(() => {}); return; }
-      if (e.target.closest?.("[data-knowledge-tree-toggle]")) { e.preventDefault(); state.knowledgeTreeOpen = !state.knowledgeTreeOpen; renderKnowledgeRail().catch(() => {}); return; }
+      if (e.target.closest?.("[data-knowledge-list-toggle]")) {
+        e.preventDefault();
+        if (state.ui) {
+          state.ui.knowledgeListCollapsed = !state.ui.knowledgeListCollapsed;
+          saveUiGeom();
+          applyKnowledgeLayoutVars();
+        }
+        return;
+      }
+      if (e.target.closest?.("[data-knowledge-workspace-tree-toggle]")) {
+        e.preventDefault();
+        if (state.ui) {
+          state.ui.knowledgeTreeCollapsed = !state.ui.knowledgeTreeCollapsed;
+          saveUiGeom();
+          applyKnowledgeLayoutVars();
+          if (state.ui.view === "knowledge") renderKnowledgeWorkspace().catch(() => {});
+        }
+        return;
+      }
+      if (e.target.closest?.("[data-knowledge-tree-toggle]")) {
+        e.preventDefault();
+        state.knowledgeTreeOpen = !state.knowledgeTreeOpen;
+        if (state.knowledgeTreeOpen && state.ui) {
+          state.ui.knowledgeTreeCollapsed = false;
+          saveUiGeom();
+        }
+        renderKnowledgeRail().catch(() => {});
+        return;
+      }
       if (e.target.closest?.("[data-knowledge-open-workspace]")) { e.preventDefault(); setWorkspace("knowledge"); renderKnowledgeWorkspace().catch(() => {}); return; }
-      if (e.target.closest?.("[data-knowledge-new-root]")) { e.preventDefault(); state.knowledgeActiveNodeId = ""; state.knowledgeTreeOpen = false; renderKnowledgeRail().then(() => ensurePanel().querySelector('[data-role="knowledge-question"]')?.focus()).catch(() => {}); return; }
+      if (e.target.closest?.("[data-knowledge-new-root]")) { e.preventDefault(); state.knowledgeActiveNodeId = ""; renderKnowledgeRail().then(() => ensurePanel().querySelector('[data-role="knowledge-question"]')?.focus()).catch(() => {}); return; }
       const knowledgeAnchorList = e.target.closest?.("[data-knowledge-anchor-list]");
       if (knowledgeAnchorList) { e.preventDefault(); state.knowledgeActiveAnchorId = String(knowledgeAnchorList.dataset.knowledgeAnchorList || ""); state.knowledgeActiveNodeId = ""; renderKnowledgeWorkspace().catch(() => {}); return; }
       const knowledgeNode = e.target.closest?.("[data-knowledge-node-id]");
-      if (knowledgeNode) { e.preventDefault(); state.knowledgeActiveNodeId = String(knowledgeNode.dataset.knowledgeNodeId || ""); state.knowledgeTreeOpen = false; if (state.ui?.view === "knowledge") renderKnowledgeWorkspace().catch(() => {}); else renderKnowledgeRail().catch(() => {}); return; }
+      if (knowledgeNode) { e.preventDefault(); state.knowledgeActiveNodeId = String(knowledgeNode.dataset.knowledgeNodeId || ""); if (state.ui?.view === "knowledge") renderKnowledgeWorkspace().catch(() => {}); else renderKnowledgeRail().catch(() => {}); return; }
       const knowledgeSuggestion = e.target.closest?.("[data-knowledge-suggestion]");
       if (knowledgeSuggestion) {
         e.preventDefault();
@@ -8149,24 +8291,51 @@
     return `<div class="bsb-knowledge-suggestions"><span class="bsb-knowledge-kicker">继续深入</span>${suggestions.map((q) => `<button type="button" data-knowledge-suggestion="${escapeAttr(q)}"><span>→</span>${escapeHtml(q)}</button>`).join("")}</div>`;
   }
 
+  function knowledgeContextHtml(anchor) {
+    const selected = String(anchor?.selectedText || "").trim();
+    const context = String(anchor?.contextText || "").trim();
+    if (!selected && !context) return "";
+    const open = state.ui?.knowledgeContextOpen !== false;
+    const showContext = context && context !== selected;
+    return `<details class="bsb-knowledge-context" data-role="knowledge-context" ${open ? "open" : ""}>
+      <summary><span>暂留字幕 · 追问依据</span><span>${selected.length > 18 ? `${escapeHtml(selected.slice(0, 18))}…` : escapeHtml(selected)}</span></summary>
+      <div class="bsb-knowledge-context-inner">
+        <div><strong>选区</strong><pre>${escapeHtml(selected)}</pre></div>
+        ${showContext ? `<div><strong>前后文</strong><pre>${escapeHtml(context)}</pre></div>` : ""}
+      </div>
+    </details>`;
+  }
+
+  function knowledgeAnswerBodyHtml(activeNode) {
+    if (!activeNode) {
+      return `<div class="bsb-knowledge-welcome"><div class="bsb-knowledge-orb">✦</div><strong>从这里向下钻</strong><span>这个锚点还没有问题。可以直接提问，或者先让 AI 解释它。</span><button type="button" data-knowledge-quick="explain">解释这个概念</button></div>`;
+    }
+    const answer = knowledgeVisibleAnswer(activeNode.answer || activeNode.preview || "");
+    const answerFallback = activeNode.status === "error"
+      ? `<div class="bsb-knowledge-thinking">回答失败${activeNode.error ? `：${escapeHtml(activeNode.error)}` : ""}</div>`
+      : activeNode.status === "stopped"
+        ? '<div class="bsb-knowledge-thinking">回答已停止。可以从这个节点继续提出新的问题。</div>'
+        : '<div class="bsb-knowledge-thinking">正在组织回答…</div>';
+    return `<div class="bsb-knowledge-question"><div class="bsb-knowledge-question-meta"><span>${activeNode.status === "running" ? "正在回答" : activeNode.status === "stopped" ? "已停止" : activeNode.status === "error" ? "回答失败" : "当前问题"}</span><button type="button" class="bsb-knowledge-node-star${activeNode.starred ? " active" : ""}" data-knowledge-star-node title="${activeNode.starred ? "取消收藏这个回答" : "收藏这个回答"}">${activeNode.starred ? "★" : "☆"}</button></div><h3>${escapeHtml(activeNode.question)}</h3></div>
+      <div class="bsb-knowledge-answer${activeNode.status === "running" ? " streaming" : ""}">${answer ? knowledgeMarkdownHtml(answer) : answerFallback}</div>
+      ${knowledgeSuggestionsHtml(activeNode)}`;
+  }
+
+  function knowledgeComposerHtml() {
+    return `<div class="bsb-knowledge-composer">
+      <textarea data-role="knowledge-question" rows="2" placeholder="继续追问这个知识点…" ${state.knowledgeBusy ? "disabled" : ""}></textarea>
+      <div class="bsb-knowledge-compose-foot"><label class="bsb-knowledge-model"><span>LLM</span><select data-role="knowledge-model" ${state.knowledgeBusy ? "disabled" : ""}>${knowledgeModelOptionsHtml()}</select></label><button type="button" class="bsb-btn accent" data-knowledge-send ${state.knowledgeBusy ? "disabled" : ""}>${state.knowledgeBusy ? "生成中" : "发送"}</button></div>
+    </div>`;
+  }
+
   function knowledgeRailBodyHtml(anchor, activeNode, { showTree = state.knowledgeTreeOpen } = {}) {
-    const nodes = knowledgeNodesForAnchor(anchor.id);
-    const answer = activeNode ? knowledgeVisibleAnswer(activeNode.answer || activeNode.preview || "") : "";
-    const answerFallback = !activeNode ? ""
-      : activeNode.status === "error" ? `<div class="bsb-knowledge-thinking">回答失败${activeNode.error ? `：${escapeHtml(activeNode.error)}` : ""}</div>`
-      : activeNode.status === "stopped" ? '<div class="bsb-knowledge-thinking">回答已停止。可以从这个节点继续提出新的问题。</div>'
-      : '<div class="bsb-knowledge-thinking">正在组织回答…</div>';
-    const answerBody = activeNode
-      ? `<div class="bsb-knowledge-question"><div class="bsb-knowledge-question-meta"><span>${activeNode.status === "running" ? "正在回答" : activeNode.status === "stopped" ? "已停止" : activeNode.status === "error" ? "回答失败" : "当前问题"}</span><button type="button" class="bsb-knowledge-node-star${activeNode.starred ? " active" : ""}" data-knowledge-star-node title="${activeNode.starred ? "取消收藏这个回答" : "收藏这个回答"}">${activeNode.starred ? "★" : "☆"}</button></div><h3>${escapeHtml(activeNode.question)}</h3></div>
-         <div class="bsb-knowledge-answer${activeNode.status === "running" ? " streaming" : ""}">${answer ? knowledgeMarkdownHtml(answer) : answerFallback}</div>
-         ${knowledgeSuggestionsHtml(activeNode)}`
-      : `<div class="bsb-knowledge-welcome"><div class="bsb-knowledge-orb">✦</div><strong>从这里向下钻</strong><span>这个锚点还没有问题。可以直接提问，或者先让 AI 解释它。</span><button type="button" data-knowledge-quick="explain">解释这个概念</button></div>`;
-    return `<div class="bsb-knowledge-crumbs">${knowledgeBreadcrumbHtml(activeNode)}</div>
-      <div class="bsb-knowledge-panel-main">${showTree ? `<div class="bsb-knowledge-tree">${knowledgeTreeHtml(anchor.id, activeNode?.id || "")}</div>` : answerBody}</div>
-      <div class="bsb-knowledge-composer">
-        <textarea data-role="knowledge-question" rows="2" placeholder="继续追问这个知识点…" ${state.knowledgeBusy ? "disabled" : ""}></textarea>
-        <div class="bsb-knowledge-compose-foot"><label class="bsb-knowledge-model"><span>LLM</span><select data-role="knowledge-model" ${state.knowledgeBusy ? "disabled" : ""}>${knowledgeModelOptionsHtml()}</select></label><button type="button" class="bsb-btn accent" data-knowledge-send ${state.knowledgeBusy ? "disabled" : ""}>${state.knowledgeBusy ? "生成中" : "发送"}</button></div>
-      </div>`;
+    const treeOpen = !!showTree && !state.ui?.knowledgeTreeCollapsed;
+    const treePane = treeOpen
+      ? `<aside class="bsb-knowledge-tree-pane" data-role="knowledge-tree-pane"><div class="bsb-knowledge-pane-head"><span class="bsb-knowledge-kicker">追问树</span><button type="button" class="bsb-icon-btn" data-knowledge-tree-toggle title="收起追问树">‹</button></div><div class="bsb-knowledge-tree">${knowledgeTreeHtml(anchor.id, activeNode?.id || "")}</div></aside><button type="button" class="bsb-knowledge-splitter" data-role="knowledge-tree-split" title="拖拽调整追问树宽度" aria-label="调整追问树宽度"></button>`
+      : "";
+    return `${knowledgeContextHtml(anchor)}
+      <div class="bsb-knowledge-crumbs">${knowledgeBreadcrumbHtml(activeNode)}${!treeOpen ? `<button type="button" class="bsb-mini" data-knowledge-tree-toggle title="展开追问树" style="margin-left:auto">☷ 追问树</button>` : ""}</div>
+      <div class="bsb-knowledge-rail-split${treeOpen ? " with-tree" : ""}">${treePane}<div class="bsb-knowledge-split-main"><div class="bsb-knowledge-panel-main">${knowledgeAnswerBodyHtml(activeNode)}</div>${knowledgeComposerHtml()}</div></div>`;
   }
 
   function scheduleKnowledgeRender() {
@@ -8183,6 +8352,7 @@
     const rail = root?.querySelector('[data-role="knowledge-rail"]');
     const aiView = root?.querySelector('[data-view-panel="ai"]');
     if (!rail || !aiView) return;
+    applyKnowledgeLayoutVars(root);
     const oldPanel = rail.querySelector('.bsb-knowledge-panel-main');
     const oldScroll = oldPanel?.scrollTop || 0;
     const stickBottom = !!oldPanel && oldPanel.scrollHeight - oldPanel.scrollTop - oldPanel.clientHeight < 56;
@@ -8195,7 +8365,7 @@
     }
     const anchor = knowledgeAnchorById(state.knowledgeActiveAnchorId);
     if (!anchor) {
-      rail.innerHTML = '<div class="bsb-knowledge-rail-empty"><span>✦</span><strong>Knowledge</strong><p>在 AI 处理字幕中选中文字，创建一个局部知识锚点。</p><button type="button" class="bsb-btn ghost" data-knowledge-close>关闭</button></div>';
+      rail.innerHTML = '<button type="button" class="bsb-knowledge-rail-resize" data-role="knowledge-rail-resize" title="拖拽调整 Knowledge 宽度" aria-label="调整 Knowledge 宽度"></button><div class="bsb-knowledge-rail-empty"><span>✦</span><strong>Knowledge</strong><p>在 AI 处理字幕中选中文字，创建一个局部知识锚点。</p><button type="button" class="bsb-btn ghost" data-knowledge-close>关闭</button></div>';
       return;
     }
     const nodes = knowledgeNodesForAnchor(anchor.id);
@@ -8204,9 +8374,10 @@
       state.knowledgeActiveNodeId = latest?.id || "";
     }
     const activeNode = knowledgeNodeById(state.knowledgeActiveNodeId);
-    rail.innerHTML = `<div class="bsb-knowledge-rail-head">
+    rail.innerHTML = `<button type="button" class="bsb-knowledge-rail-resize" data-role="knowledge-rail-resize" title="拖拽调整 Knowledge 宽度" aria-label="调整 Knowledge 宽度"></button>
+      <div class="bsb-knowledge-rail-head">
         <div class="bsb-knowledge-anchor-title"><span class="bsb-knowledge-kicker">KNOWLEDGE ANCHOR</span><strong>${escapeHtml(anchor.selectedText)}</strong><small>${escapeHtml(anchor.title || anchor.bvid)} · ${anchor.timeStart != null ? formatClock(anchor.timeStart) : "局部字幕"}${anchor.timeEnd > anchor.timeStart ? `–${formatClock(anchor.timeEnd)}` : ""}</small></div>
-        <div class="bsb-knowledge-rail-actions">${state.knowledgeBusy ? '<button type="button" class="bsb-icon-btn" data-knowledge-stop title="停止回答">■</button>' : ''}<button type="button" class="bsb-icon-btn${anchor.starred ? " active" : ""}" data-knowledge-star-anchor title="${anchor.starred ? "取消收藏锚点" : "收藏锚点"}">${anchor.starred ? "★" : "☆"}</button><button type="button" class="bsb-icon-btn" data-knowledge-new-root title="新建独立根问题">＋</button><button type="button" class="bsb-icon-btn${state.knowledgeTreeOpen ? " active" : ""}" data-knowledge-tree-toggle title="追问树">☷</button><button type="button" class="bsb-icon-btn" data-knowledge-open-workspace title="在 Knowledge 工作区打开">↗</button><button type="button" class="bsb-icon-btn" data-knowledge-close title="关闭">×</button></div>
+        <div class="bsb-knowledge-rail-actions">${state.knowledgeBusy ? '<button type="button" class="bsb-icon-btn" data-knowledge-stop title="停止回答">■</button>' : ''}<button type="button" class="bsb-icon-btn${anchor.starred ? " active" : ""}" data-knowledge-star-anchor title="${anchor.starred ? "取消收藏锚点" : "收藏锚点"}">${anchor.starred ? "★" : "☆"}</button><button type="button" class="bsb-icon-btn" data-knowledge-new-root title="新建独立根问题">＋</button><button type="button" class="bsb-icon-btn${state.knowledgeTreeOpen ? " active" : ""}" data-knowledge-tree-toggle title="${state.knowledgeTreeOpen ? "收起追问树" : "展开追问树（并排）"}">☷</button><button type="button" class="bsb-icon-btn" data-knowledge-open-workspace title="在 Knowledge 工作区打开">↗</button><button type="button" class="bsb-icon-btn" data-knowledge-close title="关闭">×</button></div>
       </div>
       <div class="bsb-knowledge-rail-body">${knowledgeRailBodyHtml(anchor, activeNode)}</div>`;
     const nextPanel = rail.querySelector('.bsb-knowledge-panel-main');
@@ -8226,15 +8397,69 @@
       await renderKnowledgeWorkspace();
     } else {
       state.knowledgeRailOpen = true;
-      state.knowledgeTreeOpen = false;
       await renderKnowledgeRail();
     }
   }
 
   function closeKnowledgeRail() {
     state.knowledgeRailOpen = false;
-    state.knowledgeTreeOpen = false;
     renderKnowledgeRail().catch(() => {});
+  }
+
+  function bindKnowledgeLayoutInteractions(root) {
+    if (!root || root._bsbKnowledgeLayoutBound) return;
+    root._bsbKnowledgeLayoutBound = true;
+
+    root.addEventListener("toggle", (event) => {
+      const details = event.target?.closest?.('[data-role="knowledge-context"]');
+      if (!details || !state.ui) return;
+      state.ui.knowledgeContextOpen = !!details.open;
+      saveUiGeom();
+    }, true);
+
+    const startResize = (kind, event) => {
+      if (!state.ui || event.button !== 0) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const startX = event.clientX;
+      const startRail = clampKnowledgeRailW(state.ui.knowledgeRailW, state.ui.w);
+      const startList = clampKnowledgeListW(state.ui.knowledgeListW);
+      const startTree = clampKnowledgeTreeW(state.ui.knowledgeTreeW);
+      const rail = root.querySelector('[data-role="knowledge-rail"]');
+      root.classList.add("knowledge-resizing");
+      rail?.classList.add("resizing");
+      const onMove = (ev) => {
+        if (kind === "rail") {
+          // Drag left edge: move left = wider rail.
+          state.ui.knowledgeRailW = clampKnowledgeRailW(startRail + (startX - ev.clientX), state.ui.w);
+        } else if (kind === "list") {
+          state.ui.knowledgeListW = clampKnowledgeListW(startList + (ev.clientX - startX));
+          state.ui.knowledgeListCollapsed = false;
+        } else if (kind === "tree") {
+          state.ui.knowledgeTreeW = clampKnowledgeTreeW(startTree + (ev.clientX - startX));
+          state.ui.knowledgeTreeCollapsed = false;
+          if (state.knowledgeRailOpen) state.knowledgeTreeOpen = true;
+        }
+        applyKnowledgeLayoutVars(root);
+      };
+      const onUp = () => {
+        window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("pointerup", onUp);
+        root.classList.remove("knowledge-resizing");
+        rail?.classList.remove("resizing");
+        saveUiGeom();
+      };
+      window.addEventListener("pointermove", onMove);
+      window.addEventListener("pointerup", onUp);
+    };
+
+    root.addEventListener("pointerdown", (event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      if (target.closest('[data-role="knowledge-rail-resize"]')) return startResize("rail", event);
+      if (target.closest('[data-role="knowledge-list-split"]')) return startResize("list", event);
+      if (target.closest('[data-role="knowledge-tree-split"]')) return startResize("tree", event);
+    });
   }
 
   function hideKnowledgeSelectionToolbar() {
@@ -8359,7 +8584,7 @@
     state.knowledgeNodes.push(node);
     state.knowledgeActiveNodeId = node.id;
     state.knowledgeBusy = true;
-    state.knowledgeTreeOpen = false;
+    // Keep tree open so follow-up threads stay visible beside the answer.
     await knowledgePutNode(node);
     await renderKnowledgeRail();
     renderKnowledgeWorkspace().catch(() => {});
@@ -8535,8 +8760,13 @@
     const nodes = knowledgeNodesForAnchor(anchor.id);
     if (!nodes.some((n) => n.id === state.knowledgeActiveNodeId)) state.knowledgeActiveNodeId = [...nodes].sort((a,b)=>Number(b.updatedAt||0)-Number(a.updatedAt||0))[0]?.id || "";
     const activeNode = knowledgeNodeById(state.knowledgeActiveNodeId);
-    detail.innerHTML = `<div class="bsb-knowledge-workspace-head"><div><span class="bsb-knowledge-kicker">ANCHOR</span><h2>${escapeHtml(anchor.selectedText)}</h2><p>${escapeHtml(anchor.title || anchor.bvid)} · ${anchor.bvid}${anchor.page > 1 ? ` P${anchor.page}` : ""}${anchor.timeStart != null ? ` · ${formatClock(anchor.timeStart)}` : ""}</p></div><div><button type="button" class="bsb-btn ghost bsb-knowledge-mobile-back" data-knowledge-back-list>← 返回</button><button type="button" class="bsb-btn ghost${anchor.starred ? " active" : ""}" data-knowledge-star-anchor>${anchor.starred ? "★ 已收藏" : "☆ 收藏"}</button><button type="button" class="bsb-btn ghost" data-knowledge-seek>回到字幕</button><button type="button" class="bsb-btn danger" data-knowledge-delete-anchor>删除</button></div></div>
-      <div class="bsb-knowledge-workspace-body"><aside class="bsb-knowledge-tree-pane"><div class="bsb-knowledge-kicker">THREAD TREE</div>${knowledgeTreeHtml(anchor.id, activeNode?.id || "")}</aside><main class="bsb-knowledge-detail-pane">${knowledgeRailBodyHtml(anchor, activeNode, { showTree: false })}</main></div>`;
+    applyKnowledgeLayoutVars(root);
+    detail.innerHTML = `<div class="bsb-knowledge-workspace-head"><div><span class="bsb-knowledge-kicker">ANCHOR</span><h2>${escapeHtml(anchor.selectedText)}</h2><p>${escapeHtml(anchor.title || anchor.bvid)} · ${anchor.bvid}${anchor.page > 1 ? ` P${anchor.page}` : ""}${anchor.timeStart != null ? ` · ${formatClock(anchor.timeStart)}` : ""}</p></div><div><button type="button" class="bsb-btn ghost bsb-knowledge-mobile-back" data-knowledge-back-list>← 返回</button><button type="button" class="bsb-btn ghost" data-knowledge-workspace-tree-toggle title="折叠 / 展开追问树">${state.ui?.knowledgeTreeCollapsed ? "☷ 展开树" : "☷ 收起树"}</button><button type="button" class="bsb-btn ghost${anchor.starred ? " active" : ""}" data-knowledge-star-anchor>${anchor.starred ? "★ 已收藏" : "☆ 收藏"}</button><button type="button" class="bsb-btn ghost" data-knowledge-seek>回到字幕</button><button type="button" class="bsb-btn danger" data-knowledge-delete-anchor>删除</button></div></div>
+      <div class="bsb-knowledge-workspace-body">
+        <aside class="bsb-knowledge-tree-pane" data-role="knowledge-tree-pane"><div class="bsb-knowledge-pane-head"><span class="bsb-knowledge-kicker">THREAD TREE</span><button type="button" class="bsb-icon-btn" data-knowledge-workspace-tree-toggle title="收起追问树">‹</button></div><div class="bsb-knowledge-tree">${knowledgeTreeHtml(anchor.id, activeNode?.id || "")}</div></aside>
+        <button type="button" class="bsb-knowledge-splitter" data-role="knowledge-tree-split" title="拖拽调整追问树宽度" aria-label="调整追问树宽度"></button>
+        <main class="bsb-knowledge-detail-pane">${knowledgeContextHtml(anchor)}<div class="bsb-knowledge-crumbs">${knowledgeBreadcrumbHtml(activeNode)}</div><div class="bsb-knowledge-panel-main">${knowledgeAnswerBodyHtml(activeNode)}</div>${knowledgeComposerHtml()}</main>
+      </div>`;
     const nextPanel = detail.querySelector('.bsb-knowledge-panel-main');
     if (nextPanel) nextPanel.scrollTop = stickBottom ? nextPanel.scrollHeight : oldScroll;
   }
