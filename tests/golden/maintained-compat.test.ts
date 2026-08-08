@@ -120,6 +120,13 @@ describe("Maintained full-feature compatibility source", () => {
     expect(maintainedSource).not.toContain('data-role="knowledge-list-split"');
     expect(maintainedSource).not.toContain("data-knowledge-workspace-tree-toggle");
     expect(maintainedSource).toContain("Enter 发送");
+    // Knowledge 页不得无条件 display:flex，否则会叠在 AI/字幕上。
+    expect(maintainedSource).not.toMatch(
+      /\[data-view-panel="knowledge"\]\s*\{\s*min-height:0;\s*height:100%;\s*display:flex/,
+    );
+    expect(maintainedSource).toContain(
+      '.bsb-view[data-view-panel="knowledge"]',
+    );
   });
 
   it("refreshes the preprocess canvas after automatic subtitle capture", () => {

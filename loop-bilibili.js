@@ -4419,15 +4419,18 @@
       #${PANEL_ID} .bsb-knowledge-rail-empty strong { color:var(--ctp-text); font-size:15px; }
       #${PANEL_ID} .bsb-knowledge-rail-empty p { max-width:260px; font-size:10.5px; line-height:1.55; }
 
-      /* Knowledge Workspace: Navigator | Reader only */
-      #${PANEL_ID} [data-view-panel="knowledge"] { min-height:0; height:100%; display:flex; flex-direction:column; }
+      /* Knowledge Workspace: Navigator | Reader only.
+         严禁在此写无条件 display:flex —— 会覆盖 .bsb-view{display:none} 叠到 AI/字幕上。 */
+      #${PANEL_ID} .bsb-view[data-view-panel="knowledge"] {
+        min-height:0; height:100%; padding:0; gap:0; overflow:hidden;
+      }
       #${PANEL_ID} .bsb-knowledge-workspace {
         flex:1 1 auto; height:100%; min-height:0; display:grid;
         grid-template-columns:minmax(0,var(--bsb-knowledge-nav-w,280px)) 5px minmax(0,1fr);
       }
       #${PANEL_ID} .bsb-knowledge-nav {
         min-width:0; min-height:0; display:flex; flex-direction:column; overflow:hidden;
-        background:color-mix(in srgb,var(--ctp-mantle) 72%,transparent); border-right:0;
+        background:color-mix(in srgb,var(--ctp-mantle) 78%,var(--ctp-base)); border-right:1px solid var(--ctp-surface0);
       }
       #${PANEL_ID} .bsb-knowledge-nav-head {
         flex:0 0 auto; display:flex; flex-direction:column; gap:8px; padding:12px 12px 10px;
@@ -4435,9 +4438,9 @@
       }
       #${PANEL_ID} .bsb-knowledge-nav-title {
         display:flex; align-items:baseline; justify-content:space-between; gap:8px;
-        color:var(--ctp-text); font-size:13px; font-weight:800; letter-spacing:.02em;
+        color:var(--ctp-overlay1); font-size:10px; font-weight:800; letter-spacing:.1em; text-transform:uppercase;
       }
-      #${PANEL_ID} .bsb-knowledge-nav-title span { color:var(--ctp-overlay1); font-size:10px; font-weight:650; }
+      #${PANEL_ID} .bsb-knowledge-nav-title span { color:var(--ctp-subtext0); font-size:10px; font-weight:650; letter-spacing:0; text-transform:none; }
       #${PANEL_ID} .bsb-knowledge-search {
         display:flex; align-items:center; gap:7px; border:1px solid var(--ctp-surface1); border-radius:10px;
         padding:0 10px; background:var(--ctp-base);
@@ -4526,6 +4529,8 @@
       }
       #${PANEL_ID} .bsb-knowledge-tree-pane { min-height:0; overflow:auto; padding:8px 6px 12px; display:flex; flex-direction:column; border-right:1px solid var(--ctp-surface0); }
       #${PANEL_ID} .bsb-knowledge-tree-pane .bsb-knowledge-tree { flex:1 1 auto; min-height:0; overflow:auto; }
+      /* 仅当知识页 active 时调整 Toast，避免误伤其他工作区 */
+      #${PANEL_ID}[data-panel-view="knowledge"] .bsb-view[data-view-panel="knowledge"].active ~ .bsb-statusbar,
       #${PANEL_ID}[data-panel-view="knowledge"] .bsb-statusbar {
         top:10px; bottom:auto; right:12px; left:auto;
         max-width:min(360px, calc(100% - 24px));
@@ -5902,18 +5907,18 @@
             </div>
           </section>
 
-          <!-- Knowledge Workspace · Navigator | Reader -->
+          <!-- Knowledge Workspace · Navigator | Reader（仅本 view active 时可见） -->
           <section class="bsb-view" data-view-panel="knowledge">
             <div class="bsb-knowledge-workspace" data-role="knowledge-workspace">
               <aside class="bsb-knowledge-nav" data-role="knowledge-nav">
                 <div class="bsb-knowledge-nav-head">
-                  <div class="bsb-knowledge-nav-title">知识 <span data-role="knowledge-count">0</span></div>
+                  <div class="bsb-knowledge-nav-title">锚点 <span data-role="knowledge-count">0</span></div>
                   <label class="bsb-knowledge-search"><span>⌕</span><input type="search" data-role="knowledge-search" placeholder="搜索锚点 / 视频 / 追问…" autocomplete="off"></label>
                 </div>
                 <div class="bsb-knowledge-nav-scroll" data-role="knowledge-list"></div>
               </aside>
               <button type="button" class="bsb-knowledge-splitter" data-role="knowledge-nav-split" title="拖拽调整导航宽度" aria-label="调整导航宽度"></button>
-              <main class="bsb-knowledge-reader" data-role="knowledge-detail"><div class="bsb-empty"><div class="bsb-empty-ico">◇</div><strong>Knowledge Workspace</strong><span>从 AI 处理字幕中选中一个知识概念开始。</span></div></main>
+              <main class="bsb-knowledge-reader" data-role="knowledge-detail"><div class="bsb-empty"><div class="bsb-empty-ico">◇</div><strong>选择知识锚点</strong><span>从左侧选择锚点，或在 AI 处理字幕里划选文字创建。</span></div></main>
             </div>
           </section>
 
@@ -6634,7 +6639,7 @@
     root.dataset.panelView = v;
     applyKnowledgeLayoutVars(root);
     const workspaceTitle = root.querySelector('[data-role="workspace-title"]');
-    if (workspaceTitle) workspaceTitle.textContent = v === "subs" ? "字幕库" : v === "knowledge" ? "知识" : v === "settings" ? "设置" : "AI 工作台";
+    if (workspaceTitle) workspaceTitle.textContent = v === "subs" ? "字幕库" : v === "knowledge" ? "知识库" : v === "settings" ? "设置" : "AI 工作台";
     root.querySelectorAll(".bsb-nav [data-view]").forEach((b) => {
       b.classList.toggle("active", b.getAttribute("data-view") === v);
     });
