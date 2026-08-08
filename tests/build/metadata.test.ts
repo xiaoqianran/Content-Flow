@@ -6,9 +6,9 @@ import {
 } from "../../apps/userscript/metadata";
 
 describe("Userscript metadata", () => {
-  it("保留 v6.0.2 安装身份并升级至 v6.1.6", () => {
+  it("保留 v6.0.2 安装身份并升级至 v6.1.7", () => {
     const header = renderUserscriptMetadata();
-    expect(userscriptMetadata.version).toBe("6.1.6");
+    expect(userscriptMetadata.version).toBe("6.1.7");
     expect(header).toContain("// @name         Bili SubBatch (loop-bilibili)");
     expect(header).toContain(
       "// @namespace    https://github.com/loop-bilibili/bili-subbatch",

@@ -4464,6 +4464,20 @@
         border:1px solid color-mix(in srgb,var(--ctp-surface1) 70%,transparent);
       }
       #${PANEL_ID} .bsb-knowledge-card-body pre code { padding:0; background:transparent; }
+      #${PANEL_ID} .bsb-knowledge-card-body .bsb-katex-display,
+      #${PANEL_ID} .bsb-knowledge-answer .bsb-katex-display {
+        display:block; overflow-x:auto; overflow-y:hidden; margin:.65em 0 .85em; padding:.35em 0;
+        text-align:center;
+      }
+      #${PANEL_ID} .bsb-knowledge-card-body .bsb-katex-inline,
+      #${PANEL_ID} .bsb-knowledge-answer .bsb-katex-inline {
+        display:inline-block; max-width:100%; overflow-x:auto; vertical-align:middle;
+      }
+      #${PANEL_ID} .bsb-knowledge-card-body .katex,
+      #${PANEL_ID} .bsb-knowledge-answer .katex { font-size:1.05em; }
+      #${PANEL_ID} .bsb-knowledge-card-body .bsb-math-fallback {
+        white-space:pre-wrap; color:var(--ctp-subtext1); font-family:ui-monospace,Consolas,monospace;
+      }
       #${PANEL_ID} .bsb-knowledge-card-body blockquote {
         margin:.5em 0 .8em; padding:.2em 0 .2em .9em;
         border-left:3px solid color-mix(in srgb,var(--bsb-block-accent) 55%,transparent);
@@ -8481,7 +8495,13 @@
     for (const node of nodes) {
       const parent = node.parentElement;
       if (!parent) continue;
-      if (parent.closest("pre, code, kbd, samp, a, .katex, .mermaid, .bsb-md-highlight, script, style")) continue;
+      if (
+      parent.closest(
+        "pre, code, kbd, samp, a, .katex, .katex-html, .katex-mathml, .bsb-katex-display, .bsb-katex-inline, .bsb-math-fallback, .mermaid, .bsb-md-highlight, script, style",
+      )
+    ) {
+      continue;
+    }
       const text = node.nodeValue || "";
       if (!text.includes("==")) continue;
 
@@ -8525,24 +8545,29 @@
   function knowledgeMarkdownHtml(text) {
     const source = String(text || "");
     const { md, maths } = prepareMarkdownMath(source);
-    let html = "";
-    try {
-      html = typeof marked !== "undefined" && marked?.parse ? marked.parse(md) : simpleMarkdownFallback(md);
-    } catch (_) {
-      html = simpleMarkdownFallback(md);
-    }
-    if (maths.length) html = replaceMathPlaceholders(html, maths, katexToHtml);
-    const safeHtml = sanitizeRenderedHtml(html);
-    return decorateMarkdownHighlights(safeHtml);
+    return knowledgeChunkToHtml(md, maths);
   }
 
   /**
-   * Split a knowledge answer into reading blocks (same visual language as
-   * AI 处理字幕 cards): headings become section titles, paragraphs become cards.
+   * Split pre-processed markdown into reading blocks.
+   * Code fences must be protected first so blank lines inside ``` do not split cards.
+   * Math should already be @@BSBMATHn@@ placeholders (from prepareMarkdownMath).
    */
   function knowledgeAnswerReadingBlocks(text) {
-    const source = String(text || "").replace(/\r\n?/g, "\n").trim();
+    const codes = [];
+    let source = String(text || "").replace(/\r\n?/g, "\n").trim();
     if (!source) return [];
+    source = source.replace(/```[\s\S]*?```/g, (m) => {
+      const i = codes.length;
+      codes.push(m);
+      return `@@BSBSPLITCODE${i}@@`;
+    });
+    const restore = (chunk) =>
+      String(chunk || "").replace(/@@BSBSPLITCODE(\d+)@@/g, (_, id) => {
+        const i = Number(id);
+        return codes[i] != null ? codes[i] : "";
+      });
+
     const blocks = [];
     let paragraph = [];
     let topic = "";
@@ -8550,13 +8575,19 @@
       const value = paragraph.join("\n").trim();
       paragraph = [];
       if (!value) return;
-      blocks.push({ type: "paragraph", text: value, topic });
+      blocks.push({ type: "paragraph", text: restore(value), topic });
     };
     for (const rawLine of source.split("\n")) {
       const line = rawLine.trimEnd();
       const trimmed = line.trim();
       if (!trimmed) {
         flush();
+        continue;
+      }
+      // Standalone math display placeholders form their own card.
+      if (/^@@BSBMATH\d+@@$/.test(trimmed)) {
+        flush();
+        blocks.push({ type: "paragraph", text: restore(trimmed), topic });
         continue;
       }
       const heading = trimmed.match(/^#{1,4}\s+(.+)$/);
@@ -8576,27 +8607,75 @@
     return blocks;
   }
 
+  /** Load marked/DOMPurify/KaTeX before Knowledge HTML is painted. */
+  async function ensureKnowledgeRenderLibs(text = "") {
+    const source = String(text || "");
+    await ensureMarkdownCore();
+    if (hasMathSyntax(source)) await ensureKatex();
+    if (hasCodeSyntax(source)) {
+      try {
+        await ensureHighlight();
+      } catch (_) {
+        /* optional */
+      }
+    }
+  }
+
+  /**
+   * Parse one knowledge markdown chunk with shared maths table.
+   * Order: marked → KaTeX placeholders → sanitize → ==highlight==.
+   */
+  function knowledgeChunkToHtml(chunk, maths) {
+    let html = "";
+    try {
+      html =
+        typeof marked !== "undefined" && marked?.parse
+          ? marked.parse(String(chunk || ""))
+          : simpleMarkdownFallback(String(chunk || ""));
+    } catch (_) {
+      html = simpleMarkdownFallback(String(chunk || ""));
+    }
+    if (maths?.length) html = replaceMathPlaceholders(html, maths, katexToHtml);
+    return decorateMarkdownHighlights(sanitizeRenderedHtml(html));
+  }
+
   /**
    * Render knowledge answers as segmented cards matching AI 处理字幕 reading UI.
-   * Body keeps markdown (lists/code/math); chrome reuses preprocess card styles.
+   * Full-document prepareMarkdownMath first so multi-line $$ / code fences stay intact.
    */
   function renderKnowledgeAnswerCards(text, { streaming = false } = {}) {
     const source = String(text || "").trim();
     if (!source) return "";
-    const blocks = knowledgeAnswerReadingBlocks(source);
+    const { md, maths } = prepareMarkdownMath(source);
+    const blocks = knowledgeAnswerReadingBlocks(md);
     if (!blocks.length) {
-      return `<div class="bsb-preprocess-reading bsb-knowledge-answer-reading"><article class="bsb-preprocess-block bsb-knowledge-answer-card"><div class="bsb-preprocess-block-head"><span class="bsb-preprocess-block-index">01</span></div><div class="bsb-preprocess-block-body bsb-knowledge-card-body">${knowledgeMarkdownHtml(source)}</div></article></div>`;
+      return `<div class="bsb-preprocess-reading bsb-knowledge-answer-reading"><article class="bsb-preprocess-block bsb-knowledge-answer-card"><div class="bsb-preprocess-block-head"><span class="bsb-preprocess-block-index">01</span></div><div class="bsb-preprocess-block-body bsb-knowledge-card-body">${knowledgeChunkToHtml(md, maths)}</div></article></div>`;
     }
     let paragraphIndex = 0;
-    const html = blocks.map((block) => {
-      if (block.type === "heading") {
-        return `<div class="bsb-preprocess-section-title">${escapeHtml(block.text)}</div>`;
-      }
-      paragraphIndex += 1;
-      const bodyHtml = knowledgeMarkdownHtml(block.text);
-      return `<article class="bsb-preprocess-block bsb-knowledge-answer-card"><div class="bsb-preprocess-block-head"><span class="bsb-preprocess-block-index">${String(paragraphIndex).padStart(2, "0")}</span>${block.topic ? `<span class="bsb-preprocess-block-topic">${escapeHtml(block.topic)}</span>` : ""}</div><div class="bsb-preprocess-block-body bsb-knowledge-card-body">${bodyHtml}</div></article>`;
-    }).join("");
+    const html = blocks
+      .map((block) => {
+        if (block.type === "heading") {
+          return `<div class="bsb-preprocess-section-title">${escapeHtml(block.text)}</div>`;
+        }
+        paragraphIndex += 1;
+        const bodyHtml = knowledgeChunkToHtml(block.text, maths);
+        return `<article class="bsb-preprocess-block bsb-knowledge-answer-card"><div class="bsb-preprocess-block-head"><span class="bsb-preprocess-block-index">${String(paragraphIndex).padStart(2, "0")}</span>${block.topic ? `<span class="bsb-preprocess-block-topic">${escapeHtml(block.topic)}</span>` : ""}</div><div class="bsb-preprocess-block-body bsb-knowledge-card-body">${bodyHtml}</div></article>`;
+      })
+      .join("");
     return `<div class="bsb-preprocess-reading bsb-knowledge-answer-reading${streaming ? " is-streaming" : ""}">${html}</div>`;
+  }
+
+  async function hydrateKnowledgeAnswerDom(scope, epoch = state.renderEpoch) {
+    if (!scope) return;
+    scope.querySelectorAll("a[href]").forEach((a) => {
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+    });
+    try {
+      await enhanceCodeBlocks(scope, epoch);
+    } catch (_) {
+      /* ignore highlight failures */
+    }
   }
 
   function knowledgeGetModelConfig() {
@@ -8824,6 +8903,12 @@
       state.knowledgeActiveNodeId = latest?.id || "";
     }
     const activeNode = knowledgeNodeById(state.knowledgeActiveNodeId);
+    const answerText = knowledgeVisibleAnswer(activeNode?.answer || activeNode?.preview || "");
+    try {
+      await ensureKnowledgeRenderLibs(answerText);
+    } catch (_) {
+      /* fall back to simple markdown */
+    }
     rail.innerHTML = `<button type="button" class="bsb-knowledge-rail-resize" data-role="knowledge-rail-resize" title="拖拽调整 Knowledge 宽度" aria-label="调整 Knowledge 宽度"></button>
       <div class="bsb-knowledge-rail-head">
         <div class="bsb-knowledge-anchor-title"><span class="bsb-knowledge-kicker">KNOWLEDGE ANCHOR</span><strong>${escapeHtml(anchor.selectedText)}</strong><small>${escapeHtml(anchor.title || anchor.bvid)} · ${anchor.timeStart != null ? formatClock(anchor.timeStart) : "局部字幕"}${anchor.timeEnd > anchor.timeStart ? `–${formatClock(anchor.timeEnd)}` : ""}</small></div>
@@ -8832,6 +8917,7 @@
       <div class="bsb-knowledge-rail-body">${knowledgeRailBodyHtml(anchor, activeNode)}</div>`;
     const nextPanel = rail.querySelector('.bsb-knowledge-panel-main');
     if (nextPanel) nextPanel.scrollTop = stickBottom ? nextPanel.scrollHeight : oldScroll;
+    await hydrateKnowledgeAnswerDom(rail.querySelector(".bsb-knowledge-rail-body") || rail, state.renderEpoch);
   }
 
   async function openKnowledgeAnchor(anchorId, { workspace = false } = {}) {
@@ -9098,8 +9184,7 @@
       node.updatedAt = Date.now();
       anchor.updatedAt = node.updatedAt;
       await Promise.all([knowledgePutNode(node), knowledgePutAnchor(anchor)]);
-      await ensureMarkdownCore().catch(() => {});
-      if (hasMathSyntax(node.answer)) await ensureKatex().catch(() => {});
+      await ensureKnowledgeRenderLibs(node.answer).catch(() => {});
       setStatus(`Knowledge · 已回答：${q.slice(0, 28)}${q.length > 28 ? "…" : ""}`, "ok");
     }).catch(async (error) => {
       const stopped = !!runtime.abort;
@@ -9203,6 +9288,12 @@
       }
     }
     const activeNode = knowledgeNodeById(state.knowledgeActiveNodeId);
+    const answerText = knowledgeVisibleAnswer(activeNode?.answer || activeNode?.preview || "");
+    try {
+      await ensureKnowledgeRenderLibs(answerText);
+    } catch (_) {
+      /* fall back to simple markdown */
+    }
     list.innerHTML = knowledgeNavigatorHtml(anchors, state.knowledgeActiveAnchorId, state.knowledgeActiveNodeId);
     workspace?.classList.toggle("detail-open", !!anchor);
     if (!anchor) {
@@ -9212,6 +9303,7 @@
     detail.innerHTML = knowledgeReaderHtml(anchor, activeNode, { isSmall });
     const nextScroll = detail.querySelector('[data-role="knowledge-reader-scroll"]');
     if (nextScroll) nextScroll.scrollTop = stickBottom ? nextScroll.scrollHeight : oldScroll;
+    await hydrateKnowledgeAnswerDom(detail, state.renderEpoch);
   }
 
   // ─── Postprocess output tasks ───────────────────────────────────────────
@@ -10911,8 +11003,27 @@
       USE_PROFILES: { html: true },
       SANITIZE_NAMED_PROPS: true,
       FORBID_TAGS: ["script", "style", "iframe", "object", "embed", "form"],
-      ADD_TAGS: ["mark"],
-      ADD_ATTR: ["target", "rel", "aria-label", "data-bsb-m", "class"],
+      // mark: ==highlight== ; math/annotation: KaTeX/MathML leftovers
+      ADD_TAGS: [
+        "mark",
+        "math",
+        "semantics",
+        "annotation",
+        "mrow",
+        "mi",
+        "mo",
+        "mn",
+        "msup",
+        "msub",
+        "mfrac",
+        "msqrt",
+        "mtext",
+        "mtable",
+        "mtr",
+        "mtd",
+      ],
+      // KaTeX relies on inline style for glyph positioning.
+      ADD_ATTR: ["target", "rel", "aria-label", "data-bsb-m", "class", "style", "xmlns", "encoding"],
     });
   }
 

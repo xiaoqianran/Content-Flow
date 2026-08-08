@@ -138,6 +138,11 @@ describe("Maintained full-feature compatibility source", () => {
     expect(maintainedSource).toContain("【阅读强调】");
     expect(maintainedSource).toContain("==关键短语==");
     expect(maintainedSource).toContain("PROMPT_SCHEMA_VERSION = 6");
+    // Knowledge MD/math: full-doc prepare + lib ensure before paint.
+    expect(maintainedSource).toContain("function ensureKnowledgeRenderLibs(");
+    expect(maintainedSource).toContain("function knowledgeChunkToHtml(");
+    expect(maintainedSource).toContain("function hydrateKnowledgeAnswerDom(");
+    expect(maintainedSource).toContain('ADD_ATTR: ["target", "rel", "aria-label", "data-bsb-m", "class", "style", "xmlns", "encoding"]');
   });
 
   it("refreshes the preprocess canvas after automatic subtitle capture", () => {
