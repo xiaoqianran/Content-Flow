@@ -106,18 +106,20 @@ describe("Maintained full-feature compatibility source", () => {
     ).toContain("SubBatch?.SubBatchMonorepo");
   });
 
-  it("supports resizable and collapsible knowledge layout columns", () => {
-    expect(maintainedSource).toContain("function bindKnowledgeLayoutInteractions(");
-    expect(maintainedSource).toContain("function applyKnowledgeLayoutVars(");
+  it("uses two-pane Knowledge Workspace (Navigator | Reader)", () => {
+    expect(maintainedSource).toContain("function knowledgeNavigatorHtml(");
+    expect(maintainedSource).toContain("function knowledgeReaderHtml(");
     expect(maintainedSource).toContain("function knowledgeContextHtml(");
-    expect(maintainedSource).toContain('data-role="knowledge-rail-resize"');
-    expect(maintainedSource).toContain('data-role="knowledge-list-split"');
-    expect(maintainedSource).toContain('data-role="knowledge-tree-split"');
-    expect(maintainedSource).toContain("data-knowledge-list-toggle");
-    expect(maintainedSource).toContain("data-knowledge-workspace-tree-toggle");
-    expect(maintainedSource).toContain("knowledgeRailW");
-    expect(maintainedSource).toContain("--bsb-knowledge-rail-w");
-    expect(maintainedSource).toContain("bsb-knowledge-rail-split${treeOpen ? \" with-tree\" : \"\"}");
+    expect(maintainedSource).toContain('data-role="knowledge-nav"');
+    expect(maintainedSource).toContain('data-role="knowledge-nav-split"');
+    expect(maintainedSource).toContain("bsb-knowledge-reader");
+    expect(maintainedSource).toContain("bsb-knowledge-evidence-chip");
+    expect(maintainedSource).toContain("knowledgeNavW");
+    expect(maintainedSource).toContain("--bsb-knowledge-nav-w");
+    expect(maintainedSource).not.toContain('data-role="knowledge-tree-split"');
+    expect(maintainedSource).not.toContain('data-role="knowledge-list-split"');
+    expect(maintainedSource).not.toContain("data-knowledge-workspace-tree-toggle");
+    expect(maintainedSource).toContain("Enter 发送");
   });
 
   it("refreshes the preprocess canvas after automatic subtitle capture", () => {
