@@ -2,7 +2,12 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-import { legacyFunction, legacySource, sourceFunction } from "./legacy-harness";
+import {
+  extractFunctionSource,
+  legacyFunction,
+  legacySource,
+  sourceFunction,
+} from "./legacy-harness";
 
 type UnknownFunction = (...args: any[]) => any;
 
@@ -55,5 +60,26 @@ describe("Maintained full-feature compatibility source", () => {
         chunkEnd: "02:00",
       }),
     ).toBe("00:30|01:00|02:00");
+  });
+
+  it("clears transcript search state when SPA navigation changes videos", () => {
+    const navigateSource = extractFunctionSource(maintainedSource, "onMaybeNavigate");
+
+    expect(navigateSource).toContain('state.transcriptQuery = ""');
+    expect(navigateSource).toContain("state.transcriptFilteredIndexes = null");
+    expect(navigateSource).toContain("transcriptSearch.value = \"\"");
+  });
+
+  it("refreshes the preprocess canvas after automatic subtitle capture", () => {
+    const captureStart = maintainedSource.indexOf(
+      "async function autoCaptureCurrentVideo(",
+    );
+    const captureEnd = maintainedSource.indexOf("// ─── SPA watch", captureStart);
+    const refreshStatement =
+      'if (currentAiWorkbenchStage() === "preprocess") await renderPreprocessCanvas()';
+
+    expect(captureStart).toBeGreaterThan(0);
+    expect(captureEnd).toBeGreaterThan(captureStart);
+    expect(maintainedSource.slice(captureStart, captureEnd)).toContain(refreshStatement);
   });
 });

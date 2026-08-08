@@ -12750,6 +12750,9 @@
     };
     renderList();
     bindTranscriptVideoEvents();
+    // 自动抓取可能在 AI 画布首次渲染之后才完成；同步刷新，避免状态显示
+    // “原始字幕已就绪”而正文仍停留在“还没有原始字幕”的竞态假象。
+    if (currentAiWorkbenchStage() === "preprocess") await renderPreprocessCanvas();
 
     if (item.subStatus === "ok") {
       if (state.autoEnablePlayerSubtitle) {
@@ -12797,8 +12800,12 @@
       state.transcriptVideoAbort?.abort();
       state.transcriptSwitchAbort?.abort();
       state.transcriptActiveCueIndex = -1;
+      state.transcriptQuery = "";
+      state.transcriptFilteredIndexes = null;
       state.transcriptItemKey = nextVideoKey;
       state.transcriptItem = null;
+      const transcriptSearch = document.getElementById(PANEL_ID)?.querySelector('[data-role="transcript-search"]');
+      if (transcriptSearch) transcriptSearch.value = "";
       refreshContextUI();
       renderTranscriptPanel();
       if (nextVideoKey) scheduleAutoCapture("route-change");

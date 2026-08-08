@@ -104,7 +104,7 @@ async function buildPureUserscript(): Promise<void> {
 }
 
 /**
- * Compat userscript: monorepo bootstrap + byte-identical v6.0.2 body.
+ * Production userscript: monorepo bootstrap + byte-identical maintained body.
  * Safety net while module takeover is incomplete.
  */
 async function buildCompatUserscript(): Promise<void> {
@@ -118,7 +118,7 @@ async function buildCompatUserscript(): Promise<void> {
     renderUserscriptMetadata(userscriptMetadata),
     "",
     `// SubBatch Monorepo runtime bootstrap (${userscriptMetadata.version})`,
-    `// Build mode: compat — includes frozen v6.0.2 behavior body`,
+    `// Build mode: compat — includes maintained full-feature behavior body`,
     bootstrap.trim(),
     "",
     LEGACY_BODY_MARKER,

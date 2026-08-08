@@ -17,7 +17,7 @@ const runtime = createUserscriptRuntime(host);
 
 /** Public monorepo API surface for the pure userscript bundle. */
 const SubBatchMonorepo = {
-  version: "6.1.0",
+  version: "6.1.1",
   runtime,
   host,
   core,
