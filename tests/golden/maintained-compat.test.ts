@@ -132,6 +132,12 @@ describe("Maintained full-feature compatibility source", () => {
     expect(maintainedSource).toContain("function renderKnowledgeAnswerCards(");
     expect(maintainedSource).toContain("bsb-knowledge-answer-card");
     expect(maintainedSource).toContain("bsb-preprocess-block bsb-knowledge-answer-card");
+    // Markdown semantic highlight layer: ==phrase== → highlighter marks.
+    expect(maintainedSource).toContain("function decorateMarkdownHighlights(");
+    expect(maintainedSource).toContain("bsb-md-highlight");
+    expect(maintainedSource).toContain("【阅读强调】");
+    expect(maintainedSource).toContain("==关键短语==");
+    expect(maintainedSource).toContain("PROMPT_SCHEMA_VERSION = 6");
   });
 
   it("refreshes the preprocess canvas after automatic subtitle capture", () => {

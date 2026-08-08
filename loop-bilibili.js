@@ -86,7 +86,7 @@
   const AI_PROFILES_STORE_KEY = "bili-subbatch-ai-profiles-v1";
   const AI_PROFILES_SCHEMA_VERSION = 4;
   const PROMPT_STORE_KEY = "bili-subbatch-prompts-v1";
-  const PROMPT_SCHEMA_VERSION = 5;
+  const PROMPT_SCHEMA_VERSION = 6;
   const DEFAULT_PROMPT_ID = "builtin-mermaid-learning-map";
   const DEFAULT_PREPROCESS_PROMPT_ID = "builtin-subtitle-normalizer";
   const DEFAULT_KNOWLEDGE_PROMPT_ID = "builtin-knowledge-drilldown";
@@ -273,6 +273,12 @@
       "6. 可使用短标题、列表、公式和必要的代码；不要输出思考过程。",
       "7. 回答末尾必须输出一个 <suggestions> 块，包含 2—4 个真正有递进价值的下一步问题，每行一个以 '- ' 开头的问题。不要在正文中解释这个块。",
       "8. 建议问题应从当前答案自然向下一层钻取，不要重复当前问题，也不要只是换一种说法。",
+      "",
+      "【阅读强调】",
+      "9. 可以使用 ==关键短语== 标记真正值得用户记住的内容。系统会把 ==...== 渲染为视觉高亮。",
+      "10. 高亮必须克制：每个自然段通常 0—2 处；优先高亮核心概念、关键结论、因果节点、关键数字、重要边界；一处高亮尽量是一个短语，而不是整段文字；禁止连续高亮多个句子；禁止为了视觉效果随意高亮普通描述。",
+      "11. **...** 只表示普通加粗；==...== 表示更高一级的『核心记忆点』。",
+      "12. 不要在代码、公式、Markdown 标题中使用 ==...==；不要嵌套写成 ==**文字**==。",
     ].join("\n"),
     userPromptTemplate: [
       "<source>",
@@ -4402,6 +4408,51 @@
       #${PANEL_ID} .bsb-knowledge-card-body ul,
       #${PANEL_ID} .bsb-knowledge-card-body ol { margin:.35em 0 .7em; padding-left:1.25em; }
       #${PANEL_ID} .bsb-knowledge-card-body li { margin:.2em 0; }
+      #${PANEL_ID} .bsb-knowledge-card-body strong {
+        color:color-mix(in srgb,var(--ctp-rosewater) 88%,var(--ctp-text));
+        font-weight:800;
+      }
+      /* ==核心记忆点== ：荧光笔只划文字下半，高度/颜色受控错落，文字 baseline 不乱 */
+      #${PANEL_ID} .bsb-md-highlight {
+        --bsb-hl-color:color-mix(in srgb,var(--ctp-mauve) 38%,transparent);
+        --bsb-hl-start:58%;
+        --bsb-hl-end:94%;
+        color:inherit;
+        font-weight:760;
+        padding:0 .07em;
+        margin:0 .015em;
+        border-radius:.18em;
+        background:linear-gradient(
+          180deg,
+          transparent 0,
+          transparent var(--bsb-hl-start),
+          var(--bsb-hl-color) var(--bsb-hl-start),
+          var(--bsb-hl-color) var(--bsb-hl-end),
+          transparent var(--bsb-hl-end)
+        );
+        -webkit-box-decoration-break:clone;
+        box-decoration-break:clone;
+      }
+      #${PANEL_ID} .bsb-md-highlight-0 {
+        --bsb-hl-color:color-mix(in srgb,var(--ctp-mauve) 38%,transparent);
+        --bsb-hl-start:61%;
+        --bsb-hl-end:96%;
+      }
+      #${PANEL_ID} .bsb-md-highlight-1 {
+        --bsb-hl-color:color-mix(in srgb,var(--ctp-teal) 31%,transparent);
+        --bsb-hl-start:52%;
+        --bsb-hl-end:89%;
+      }
+      #${PANEL_ID} .bsb-md-highlight-2 {
+        --bsb-hl-color:color-mix(in srgb,var(--ctp-peach) 29%,transparent);
+        --bsb-hl-start:64%;
+        --bsb-hl-end:93%;
+      }
+      #${PANEL_ID} .bsb-md-highlight-3 {
+        --bsb-hl-color:color-mix(in srgb,var(--ctp-lavender) 30%,transparent);
+        --bsb-hl-start:56%;
+        --bsb-hl-end:92%;
+      }
       #${PANEL_ID} .bsb-knowledge-card-body code {
         font:650 .9em/1.4 ui-monospace,SFMono-Regular,Consolas,monospace;
         padding:.08em .35em; border-radius:5px;
@@ -8091,6 +8142,26 @@
     return { prompts: next, changed };
   }
 
+  function migrateBuiltinKnowledgeHighlightRules(prompts, storedVersion) {
+    if (Number(storedVersion || 0) >= 6) return { prompts, changed: false };
+    let changed = false;
+    const next = (prompts || []).map((prompt) => {
+      if (!prompt || prompt.id !== DEFAULT_KNOWLEDGE_PROMPT_ID) return prompt;
+      const systemPrompt = String(prompt.systemPrompt || "");
+      if (/【阅读强调】|==关键短语==/.test(systemPrompt)) return prompt;
+      const addition = [
+        "【阅读强调】",
+        "9. 可以使用 ==关键短语== 标记真正值得用户记住的内容。系统会把 ==...== 渲染为视觉高亮。",
+        "10. 高亮必须克制：每个自然段通常 0—2 处；优先高亮核心概念、关键结论、因果节点、关键数字、重要边界；一处高亮尽量是一个短语，而不是整段文字；禁止连续高亮多个句子；禁止为了视觉效果随意高亮普通描述。",
+        "11. **...** 只表示普通加粗；==...== 表示更高一级的『核心记忆点』。",
+        "12. 不要在代码、公式、Markdown 标题中使用 ==...==；不要嵌套写成 ==**文字**==。",
+      ].join("\n");
+      changed = true;
+      return { ...prompt, systemPrompt: `${systemPrompt.trim()}\n\n${addition}`.trim() };
+    });
+    return { prompts: next, changed };
+  }
+
   function resolvePromptActiveIds(prompts, postId, preId, knowledgeId) {
     const posts = prompts.filter((p) => p.stage === "postprocess");
     const pres = prompts.filter((p) => p.stage === "preprocess");
@@ -8115,7 +8186,15 @@
         prompts = migratedLanguage.prompts;
         const migratedChunking = migrateBuiltinPreprocessChunkRules(prompts, storedVersion);
         prompts = migratedChunking.prompts;
-        const migrated = { changed: migratedLanguage.changed || migratedChunking.changed || storedVersion < PROMPT_SCHEMA_VERSION };
+        const migratedHighlight = migrateBuiltinKnowledgeHighlightRules(prompts, storedVersion);
+        prompts = migratedHighlight.prompts;
+        const migrated = {
+          changed:
+            migratedLanguage.changed ||
+            migratedChunking.changed ||
+            migratedHighlight.changed ||
+            storedVersion < PROMPT_SCHEMA_VERSION,
+        };
         const ids = resolvePromptActiveIds(
           prompts,
           String(Array.isArray(parsed) ? "" : parsed?.activeId || ""),
@@ -8387,6 +8466,62 @@
     return parseKnowledgeOutput(raw).answer || String(raw || "").replace(/<suggestions>[\s\S]*$/i, "").trim();
   }
 
+  /**
+   * Post-process sanitized HTML: turn ==phrase== into highlighter marks.
+   * Tree-walk text nodes only (skip code/math/links) so `a == b` in code stays intact.
+   */
+  function decorateMarkdownHighlights(html) {
+    if (typeof document === "undefined") return String(html || "");
+    const tpl = document.createElement("template");
+    tpl.innerHTML = String(html || "");
+    const walker = document.createTreeWalker(tpl.content, NodeFilter.SHOW_TEXT);
+    const nodes = [];
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+
+    for (const node of nodes) {
+      const parent = node.parentElement;
+      if (!parent) continue;
+      if (parent.closest("pre, code, kbd, samp, a, .katex, .mermaid, .bsb-md-highlight, script, style")) continue;
+      const text = node.nodeValue || "";
+      if (!text.includes("==")) continue;
+
+      const regex = /==([^=\n]{1,120}?)==/g;
+      let match;
+      let cursor = 0;
+      let changed = false;
+      const frag = document.createDocumentFragment();
+
+      while ((match = regex.exec(text))) {
+        changed = true;
+        if (match.index > cursor) {
+          frag.appendChild(document.createTextNode(text.slice(cursor, match.index)));
+        }
+        const value = String(match[1] || "").trim();
+        if (!value) {
+          frag.appendChild(document.createTextNode(match[0]));
+          cursor = regex.lastIndex;
+          continue;
+        }
+        let hash = 0;
+        for (let i = 0; i < value.length; i += 1) {
+          hash = ((hash * 31) + value.charCodeAt(i)) >>> 0;
+        }
+        const tone = hash % 4;
+        const mark = document.createElement("mark");
+        mark.className = `bsb-md-highlight bsb-md-highlight-${tone}`;
+        mark.textContent = value;
+        frag.appendChild(mark);
+        cursor = regex.lastIndex;
+      }
+      if (!changed) continue;
+      if (cursor < text.length) {
+        frag.appendChild(document.createTextNode(text.slice(cursor)));
+      }
+      node.replaceWith(frag);
+    }
+    return tpl.innerHTML;
+  }
+
   function knowledgeMarkdownHtml(text) {
     const source = String(text || "");
     const { md, maths } = prepareMarkdownMath(source);
@@ -8397,7 +8532,8 @@
       html = simpleMarkdownFallback(md);
     }
     if (maths.length) html = replaceMathPlaceholders(html, maths, katexToHtml);
-    return sanitizeRenderedHtml(html);
+    const safeHtml = sanitizeRenderedHtml(html);
+    return decorateMarkdownHighlights(safeHtml);
   }
 
   /**
@@ -10763,6 +10899,7 @@
     html = html.replace(/^## (.+)$/gm, "<h2>$1</h2>");
     html = html.replace(/^# (.+)$/gm, "<h1>$1</h1>");
     html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+    // Preserve ==highlight== for decorateMarkdownHighlights after sanitize.
     html = html.replace(/`([^`]+)`/g, "<code>$1</code>");
     html = html.replace(/\n\n/g, "</p><p>");
     return `<p>${html}</p>`;
@@ -10774,7 +10911,8 @@
       USE_PROFILES: { html: true },
       SANITIZE_NAMED_PROPS: true,
       FORBID_TAGS: ["script", "style", "iframe", "object", "embed", "form"],
-      ADD_ATTR: ["target", "rel", "aria-label", "data-bsb-m"],
+      ADD_TAGS: ["mark"],
+      ADD_ATTR: ["target", "rel", "aria-label", "data-bsb-m", "class"],
     });
   }
 
