@@ -4369,17 +4369,77 @@
       #${PANEL_ID} .bsb-knowledge-node-star { width:28px; height:28px; display:grid; place-items:center; border:0; border-radius:8px; background:transparent; color:var(--ctp-overlay1); cursor:pointer; font-size:15px; line-height:1; }
       #${PANEL_ID} .bsb-knowledge-node-star:hover { background:var(--ctp-surface0); color:var(--ctp-yellow); }
       #${PANEL_ID} .bsb-knowledge-node-star.active { color:var(--ctp-yellow); background:color-mix(in srgb,var(--ctp-yellow) 9%,transparent); }
-      #${PANEL_ID} .bsb-knowledge-question h3 { margin:5px 0 13px; color:var(--ctp-text); font-size:16px; line-height:1.45; }
-      #${PANEL_ID} .bsb-knowledge-answer { color:var(--ctp-text); font-size:calc(var(--bsb-note-font) * .83); line-height:1.75; }
-      #${PANEL_ID} .bsb-knowledge-answer.streaming::after { content:""; display:inline-block; width:7px; height:13px; margin-left:4px; vertical-align:-2px; border-radius:2px; background:var(--ctp-mauve); animation:bsb-pulse 1s ease-in-out infinite; }
-      #${PANEL_ID} .bsb-knowledge-answer h1,#${PANEL_ID} .bsb-knowledge-answer h2,#${PANEL_ID} .bsb-knowledge-answer h3 { margin:15px 0 7px; font-size:1em; color:var(--ctp-lavender); }
-      #${PANEL_ID} .bsb-knowledge-answer p { margin:7px 0; }
-      #${PANEL_ID} .bsb-knowledge-answer ul,#${PANEL_ID} .bsb-knowledge-answer ol { padding-left:20px; }
-      #${PANEL_ID} .bsb-knowledge-thinking { color:var(--ctp-overlay1); }
-      #${PANEL_ID} .bsb-knowledge-suggestions { margin-top:20px; padding-top:13px; border-top:1px solid var(--ctp-surface0); }
-      #${PANEL_ID} .bsb-knowledge-suggestions button { width:100%; display:flex; gap:7px; align-items:flex-start; border:0; border-radius:8px; padding:7px 5px; background:transparent; color:var(--ctp-subtext1); cursor:pointer; text-align:left; line-height:1.45; font-size:10.5px; }
+      #${PANEL_ID} .bsb-knowledge-question-card {
+        --bsb-block-accent: var(--ctp-mauve);
+        position:relative; overflow:hidden; margin:0 0 12px; padding:12px 14px 13px 16px; border-radius:13px;
+        border:1px solid color-mix(in srgb,var(--ctp-mauve) 22%,var(--ctp-surface0));
+        background:
+          linear-gradient(105deg,color-mix(in srgb,var(--ctp-mauve) 8%,transparent),transparent 40%),
+          color-mix(in srgb,var(--ctp-mantle) 70%,transparent);
+        box-shadow:0 4px 16px color-mix(in srgb,var(--ctp-crust) 15%,transparent);
+      }
+      #${PANEL_ID} .bsb-knowledge-question-card::before {
+        content:""; position:absolute; inset:9px auto 9px 0; width:3px; border-radius:0 999px 999px 0;
+        background:var(--ctp-mauve); opacity:.8;
+      }
+      #${PANEL_ID} .bsb-knowledge-question h3 { margin:5px 0 0; color:var(--ctp-text); font-size:15.5px; line-height:1.45; font-weight:760; }
+      #${PANEL_ID} .bsb-knowledge-answer { color:var(--ctp-text); }
+      #${PANEL_ID} .bsb-knowledge-answer-reading {
+        display:flex; flex-direction:column; gap:10px;
+      }
+      #${PANEL_ID} .bsb-knowledge-answer-card.bsb-preprocess-block {
+        /* reuse preprocess card chrome; accent cycles via nth-of-type */
+      }
+      #${PANEL_ID} .bsb-knowledge-card-body {
+        white-space:normal;
+        color:color-mix(in srgb,var(--ctp-text) 94%,var(--ctp-subtext1));
+        font-size:calc(var(--bsb-note-font) * .96); line-height:1.86; letter-spacing:.018em;
+        overflow-wrap:anywhere; text-wrap:pretty;
+      }
+      #${PANEL_ID} .bsb-knowledge-card-body > *:first-child { margin-top:0; }
+      #${PANEL_ID} .bsb-knowledge-card-body > *:last-child { margin-bottom:0; }
+      #${PANEL_ID} .bsb-knowledge-card-body p { margin:0 0 .7em; }
+      #${PANEL_ID} .bsb-knowledge-card-body ul,
+      #${PANEL_ID} .bsb-knowledge-card-body ol { margin:.35em 0 .7em; padding-left:1.25em; }
+      #${PANEL_ID} .bsb-knowledge-card-body li { margin:.2em 0; }
+      #${PANEL_ID} .bsb-knowledge-card-body code {
+        font:650 .9em/1.4 ui-monospace,SFMono-Regular,Consolas,monospace;
+        padding:.08em .35em; border-radius:5px;
+        background:color-mix(in srgb,var(--bsb-block-accent) 10%,var(--ctp-surface0));
+      }
+      #${PANEL_ID} .bsb-knowledge-card-body pre {
+        margin:.5em 0 .8em; padding:10px 12px; border-radius:10px; overflow:auto;
+        background:color-mix(in srgb,var(--ctp-crust) 35%,var(--ctp-mantle));
+        border:1px solid color-mix(in srgb,var(--ctp-surface1) 70%,transparent);
+      }
+      #${PANEL_ID} .bsb-knowledge-card-body pre code { padding:0; background:transparent; }
+      #${PANEL_ID} .bsb-knowledge-card-body blockquote {
+        margin:.5em 0 .8em; padding:.2em 0 .2em .9em;
+        border-left:3px solid color-mix(in srgb,var(--bsb-block-accent) 55%,transparent);
+        color:var(--ctp-subtext1);
+      }
+      #${PANEL_ID} .bsb-knowledge-answer.streaming .bsb-knowledge-answer-card:last-of-type .bsb-knowledge-card-body::after {
+        content:""; display:inline-block; width:7px; height:13px; margin-left:4px; vertical-align:-2px;
+        border-radius:2px; background:var(--ctp-mauve); animation:bsb-pulse 1s ease-in-out infinite;
+      }
+      #${PANEL_ID} .bsb-knowledge-thinking {
+        color:var(--ctp-overlay1); padding:18px 14px; border-radius:13px;
+        border:1px dashed color-mix(in srgb,var(--ctp-surface2) 55%,transparent);
+        background:color-mix(in srgb,var(--ctp-mantle) 55%,transparent); font-size:12px; line-height:1.55;
+      }
+      #${PANEL_ID} .bsb-knowledge-suggestions {
+        margin-top:14px; padding:12px 12px 10px; border-radius:13px;
+        border:1px solid color-mix(in srgb,var(--ctp-mauve) 14%,var(--ctp-surface0));
+        background:color-mix(in srgb,var(--ctp-mantle) 58%,transparent);
+      }
+      #${PANEL_ID} .bsb-knowledge-suggestions .bsb-knowledge-kicker { display:block; margin-bottom:6px; }
+      #${PANEL_ID} .bsb-knowledge-suggestions button {
+        width:100%; display:flex; gap:7px; align-items:flex-start; border:0; border-radius:9px;
+        padding:8px 7px; background:transparent; color:var(--ctp-subtext1); cursor:pointer;
+        text-align:left; line-height:1.45; font-size:11px;
+      }
       #${PANEL_ID} .bsb-knowledge-suggestions button:hover { background:var(--ctp-surface0); color:var(--ctp-text); }
-      #${PANEL_ID} .bsb-knowledge-suggestions button span { color:var(--ctp-mauve); }
+      #${PANEL_ID} .bsb-knowledge-suggestions button span { color:var(--ctp-mauve); flex:0 0 auto; }
       #${PANEL_ID} .bsb-knowledge-composer {
         flex:0 0 auto; padding:10px 14px 12px; border-top:1px solid var(--ctp-surface0);
         background:color-mix(in srgb,var(--ctp-mantle) 88%,transparent); backdrop-filter:blur(10px);
@@ -8340,6 +8400,69 @@
     return sanitizeRenderedHtml(html);
   }
 
+  /**
+   * Split a knowledge answer into reading blocks (same visual language as
+   * AI 处理字幕 cards): headings become section titles, paragraphs become cards.
+   */
+  function knowledgeAnswerReadingBlocks(text) {
+    const source = String(text || "").replace(/\r\n?/g, "\n").trim();
+    if (!source) return [];
+    const blocks = [];
+    let paragraph = [];
+    let topic = "";
+    const flush = () => {
+      const value = paragraph.join("\n").trim();
+      paragraph = [];
+      if (!value) return;
+      blocks.push({ type: "paragraph", text: value, topic });
+    };
+    for (const rawLine of source.split("\n")) {
+      const line = rawLine.trimEnd();
+      const trimmed = line.trim();
+      if (!trimmed) {
+        flush();
+        continue;
+      }
+      const heading = trimmed.match(/^#{1,4}\s+(.+)$/);
+      if (heading) {
+        flush();
+        topic = heading[1].replace(/[*_`]+/g, "").trim();
+        blocks.push({ type: "heading", text: topic });
+        continue;
+      }
+      if (/^(-{3,}|\*{3,}|_{3,})$/.test(trimmed)) {
+        flush();
+        continue;
+      }
+      paragraph.push(line);
+    }
+    flush();
+    return blocks;
+  }
+
+  /**
+   * Render knowledge answers as segmented cards matching AI 处理字幕 reading UI.
+   * Body keeps markdown (lists/code/math); chrome reuses preprocess card styles.
+   */
+  function renderKnowledgeAnswerCards(text, { streaming = false } = {}) {
+    const source = String(text || "").trim();
+    if (!source) return "";
+    const blocks = knowledgeAnswerReadingBlocks(source);
+    if (!blocks.length) {
+      return `<div class="bsb-preprocess-reading bsb-knowledge-answer-reading"><article class="bsb-preprocess-block bsb-knowledge-answer-card"><div class="bsb-preprocess-block-head"><span class="bsb-preprocess-block-index">01</span></div><div class="bsb-preprocess-block-body bsb-knowledge-card-body">${knowledgeMarkdownHtml(source)}</div></article></div>`;
+    }
+    let paragraphIndex = 0;
+    const html = blocks.map((block) => {
+      if (block.type === "heading") {
+        return `<div class="bsb-preprocess-section-title">${escapeHtml(block.text)}</div>`;
+      }
+      paragraphIndex += 1;
+      const bodyHtml = knowledgeMarkdownHtml(block.text);
+      return `<article class="bsb-preprocess-block bsb-knowledge-answer-card"><div class="bsb-preprocess-block-head"><span class="bsb-preprocess-block-index">${String(paragraphIndex).padStart(2, "0")}</span>${block.topic ? `<span class="bsb-preprocess-block-topic">${escapeHtml(block.topic)}</span>` : ""}</div><div class="bsb-preprocess-block-body bsb-knowledge-card-body">${bodyHtml}</div></article>`;
+    }).join("");
+    return `<div class="bsb-preprocess-reading bsb-knowledge-answer-reading${streaming ? " is-streaming" : ""}">${html}</div>`;
+  }
+
   function knowledgeGetModelConfig() {
     const profiles = state.aiProfiles?.length ? state.aiProfiles : loadAiProfiles();
     const ready = profiles.filter((p) => p.enabled !== false && p.apiKey && p.baseUrl && p.model);
@@ -8415,13 +8538,24 @@
       return `<div class="bsb-knowledge-welcome"><div class="bsb-knowledge-orb">✦</div><strong>从这里向下钻</strong><span>这个锚点还没有问题。可以直接提问，或者先让 AI 解释它。</span><button type="button" data-knowledge-quick="explain">解释这个概念</button></div>`;
     }
     const answer = knowledgeVisibleAnswer(activeNode.answer || activeNode.preview || "");
+    const streaming = activeNode.status === "running";
+    const statusLabel = streaming
+      ? "正在回答"
+      : activeNode.status === "stopped"
+        ? "已停止"
+        : activeNode.status === "error"
+          ? "回答失败"
+          : "当前问题";
     const answerFallback = activeNode.status === "error"
       ? `<div class="bsb-knowledge-thinking">回答失败${activeNode.error ? `：${escapeHtml(activeNode.error)}` : ""}</div>`
       : activeNode.status === "stopped"
         ? '<div class="bsb-knowledge-thinking">回答已停止。可以从这个节点继续提出新的问题。</div>'
         : '<div class="bsb-knowledge-thinking">正在组织回答…</div>';
-    return `<div class="bsb-knowledge-question"><div class="bsb-knowledge-question-meta"><span>${activeNode.status === "running" ? "正在回答" : activeNode.status === "stopped" ? "已停止" : activeNode.status === "error" ? "回答失败" : "当前问题"}</span><button type="button" class="bsb-knowledge-node-star${activeNode.starred ? " active" : ""}" data-knowledge-star-node title="${activeNode.starred ? "取消收藏这个回答" : "收藏这个回答"}">${activeNode.starred ? "★" : "☆"}</button></div><h3>${escapeHtml(activeNode.question)}</h3></div>
-      <div class="bsb-knowledge-answer${activeNode.status === "running" ? " streaming" : ""}">${answer ? knowledgeMarkdownHtml(answer) : answerFallback}</div>
+    const answerHtml = answer
+      ? renderKnowledgeAnswerCards(answer, { streaming })
+      : answerFallback;
+    return `<article class="bsb-knowledge-question-card"><div class="bsb-knowledge-question"><div class="bsb-knowledge-question-meta"><span>${statusLabel}</span><button type="button" class="bsb-knowledge-node-star${activeNode.starred ? " active" : ""}" data-knowledge-star-node title="${activeNode.starred ? "取消收藏这个回答" : "收藏这个回答"}">${activeNode.starred ? "★" : "☆"}</button></div><h3>${escapeHtml(activeNode.question)}</h3></div></article>
+      <div class="bsb-knowledge-answer${streaming ? " streaming" : ""}">${answerHtml}</div>
       ${knowledgeSuggestionsHtml(activeNode)}`;
   }
 

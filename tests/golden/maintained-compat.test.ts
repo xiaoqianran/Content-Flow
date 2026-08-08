@@ -127,6 +127,11 @@ describe("Maintained full-feature compatibility source", () => {
     expect(maintainedSource).toContain(
       '.bsb-view[data-view-panel="knowledge"]',
     );
+    // Knowledge answers reuse AI 处理字幕 segmented card chrome.
+    expect(maintainedSource).toContain("function knowledgeAnswerReadingBlocks(");
+    expect(maintainedSource).toContain("function renderKnowledgeAnswerCards(");
+    expect(maintainedSource).toContain("bsb-knowledge-answer-card");
+    expect(maintainedSource).toContain("bsb-preprocess-block bsb-knowledge-answer-card");
   });
 
   it("refreshes the preprocess canvas after automatic subtitle capture", () => {
